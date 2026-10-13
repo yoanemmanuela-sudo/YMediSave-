@@ -23,6 +23,9 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
+
+    - name: Création des fichiers système Android
+      run: flutter create .
         
     - name: Téléchargement des dépendances
       run: flutter pub get
@@ -35,3 +38,4 @@ jobs:
       with:
         name: YMediSave-APK
         path: build/app/outputs/flutter-apk/app-release.apk
+        
