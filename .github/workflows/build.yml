@@ -11,10 +11,10 @@ jobs:
 
     steps:
     - name: Récupération du code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Configuration de Java
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '17'
@@ -24,11 +24,20 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Création des fichiers système Android
-      run: flutter create .
+    - name: Préparation propre du projet Android sans écraser lib
+      run: |
+        cp -r lib /tmp/lib_backup
+        cp pubspec.yaml /tmp/pubspec_backup.yaml
+        flutter create --org com.ymedisave.app --project-name ymedisave .
+        rm -rf lib test
+        mv /tmp/lib_backup lib
+        mv /tmp/pubspec_backup.yaml pubspec.yaml
         
     - name: Téléchargement des dépendances
       run: flutter pub get
+
+    - name: Vérification du code Dart
+      run: flutter analyze --no-fatal-infos --no-fatal-warnings
       
     - name: Compilation de l'APK Android
       run: flutter build apk --release
