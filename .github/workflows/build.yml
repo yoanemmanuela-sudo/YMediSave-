@@ -47,7 +47,7 @@ jobs:
         EOF
         python generate_icon.py
 
-    - name: Préparation propre du projet Android et Configuration Système Yo'art Tech
+    - name: Préparation du projet et Autorisations Arrière-plan
       run: |
         cp -r lib /tmp/lib_backup
         cp pubspec.yaml /tmp/pubspec_backup.yaml
@@ -70,7 +70,10 @@ jobs:
             'android.permission.ACCESS_FINE_LOCATION',
             'android.permission.ACCESS_COARSE_LOCATION',
             'android.permission.READ_EXTERNAL_STORAGE',
-            'android.permission.WRITE_EXTERNAL_STORAGE'
+            'android.permission.WRITE_EXTERNAL_STORAGE',
+            'android.permission.WAKE_LOCK',
+            'android.permission.FOREGROUND_SERVICE',
+            'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'
         ]
         for p in perms:
             ET.SubElement(root, 'uses-permission', {'{http://schemas.android.com/apk/res/android}name': p})
@@ -94,13 +97,13 @@ jobs:
     - name: Téléchargement des dépendances
       run: flutter pub get
 
-    - name: Intégration définitive du logo dans le téléphone
+    - name: Intégration du logo
       run: dart run flutter_launcher_icons
 
-    - name: Vérification du code Dart
+    - name: Vérification du code
       run: flutter analyze --no-fatal-infos --no-fatal-warnings
       
-    - name: Compilation de l'APK Android
+    - name: Compilation de l'APK
       run: flutter build apk --release
       
     - name: Sauvegarde de l'APK
