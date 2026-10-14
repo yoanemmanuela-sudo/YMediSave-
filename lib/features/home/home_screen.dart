@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/services/ad_service.dart';
+import '../search/maguy_ai_screen.dart';
 import '../browser/browser_screen.dart';
+import '../../core/services/ad_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,135 +12,112 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _searchController = TextEditingController();
+  Future<void> _refreshFeeds() async {
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Flux mis à jour par Maguy !'), backgroundColor: AppColors.success),
+      );
+    }
+  }
+
+  void _openMaguySearch() {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const MaguyAiScreen()));
+  }
 
   void _openBrowser(String url) {
-    if (url.trim().isEmpty) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => BrowserScreen(initialUrl: url)),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (context) => BrowserScreen(initialUrl: url)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
-      // Le dégradé Violet -> Noir s'applique ici sur toute la page
       body: Container(
-        width: double.infinity,
-        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.primaryViolet.withOpacity(0.35), // Violet lumineux en haut à gauche
-              AppColors.backgroundDark,                  // Se fond dans le noir anthracite
-              AppColors.backgroundDark,
-            ],
-            stops: const [0.0, 0.4, 1.0],
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: [AppColors.primaryViolet.withOpacity(0.35), AppColors.backgroundDark],
+            stops: const [0.0, 0.4],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // En-tête transparent (Titre YMediSave)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      width: 30, height: 30,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [AppColors.accentGradientStart, AppColors.accentGradientEnd]),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                    Row(
+                      children: [
+                        Container(
+                          width: 30, height: 30,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [AppColors.accentGradientStart, AppColors.accentGradientEnd]),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('YMediSave', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    const Text('YMediSave', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
+                    IconButton(
+                      icon: const Icon(Icons.auto_awesome, color: AppColors.secondaryCyan),
+                      onPressed: _openMaguySearch,
+                      tooltip: 'Parler à Maguy IA',
+                    ),
                   ],
                 ),
               ),
-              
               Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
+                child: RefreshIndicator(
+                  color: AppColors.secondaryCyan,
+                  backgroundColor: AppColors.surfaceDark,
+                  onRefresh: _refreshFeeds,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      // Barre de recherche type Navigateur
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.cardDark.withOpacity(0.85), // Légère transparence
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: AppColors.primaryViolet.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.search, color: AppColors.textSecondaryDark),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: TextField(
-                                  controller: _searchController,
-                                  style: const TextStyle(color: AppColors.textPrimaryDark),
-                                  decoration: const InputDecoration(
-                                    border: InputBorder.none,
-                                    hintText: 'Recherchez ou entrez une URL...',
-                                    hintStyle: TextStyle(color: AppColors.textSecondaryDark, fontSize: 14),
-                                  ),
-                                  onSubmitted: (value) => _openBrowser(value),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.language, color: AppColors.secondaryCyan),
-                                onPressed: () => _openBrowser(_searchController.text),
-                              ),
-                            ],
+                        child: GestureDetector(
+                          onTap: _openMaguySearch,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardDark.withOpacity(0.85),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: AppColors.primaryViolet.withOpacity(0.3)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.search, color: AppColors.textSecondaryDark),
+                                SizedBox(width: 10),
+                                Text('Rechercher ou demander à Maguy...', style: TextStyle(color: AppColors.textSecondaryDark, fontSize: 14)),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-
-                      // Raccourcis Rapides Connectés
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             _buildShortcutIcon(Icons.video_collection, 'YouTube', AppColors.error, 'youtube.com'),
-                            _buildShortcutIcon(Icons.chat_rounded, 'WhatsApp', AppColors.success, 'web.whatsapp.com'),
-                            _buildShortcutIcon(Icons.facebook_rounded, 'Facebook', Colors.blue, 'facebook.com'),
                             _buildShortcutIcon(Icons.music_note_rounded, 'TikTok', Colors.pinkAccent, 'tiktok.com'),
+                            _buildShortcutIcon(Icons.facebook_rounded, 'Facebook', Colors.blue, 'facebook.com'),
+                            _buildShortcutIcon(Icons.library_music_rounded, 'Musique', AppColors.secondaryCyan, 'soundcloud.com'),
                           ],
                         ),
                       ),
                       const SizedBox(height: 24),
-
-                      // Zone de flux
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        margin: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceDark.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Sponsorisé ou Flux', style: TextStyle(color: AppColors.textSecondaryDark, fontSize: 12, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 12),
-                            Container(
-                              height: 200,
-                              width: double.infinity,
-                              decoration: BoxDecoration(color: AppColors.cardDark.withOpacity(0.8), borderRadius: BorderRadius.circular(12)),
-                              child: const Center(child: Icon(Icons.image_outlined, size: 64, color: AppColors.textSecondaryDark)),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildSectionHeader('🔥 Vidéos Virales (Tirez pour actualiser)'),
+                      _buildHorizontalScroll(Icons.local_fire_department_rounded, AppColors.error),
+                      const SizedBox(height: 20),
+                      _buildSectionHeader('🎵 Top Musiques & Nouveautés'),
+                      _buildHorizontalScroll(Icons.music_note_rounded, AppColors.secondaryCyan),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -149,6 +127,32 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildHorizontalScroll(IconData icon, Color color) {
+    return SizedBox(
+      height: 140,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: 4,
+        itemBuilder: (context, index) {
+          return Container(
+            width: 220,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(12)),
+            child: Center(child: Icon(icon, color: color.withOpacity(0.5), size: 48)),
+          );
+        },
       ),
     );
   }
