@@ -27,7 +27,6 @@ class AdService extends ChangeNotifier {
     return '${minutes}m ${seconds}s restantes';
   }
 
-  // 2. VIDÉO PUBLICITAIRE RÉCOMPENSÉE
   Future<void> showRewardedAdDialog(BuildContext context) async {
     int secondsLeft = 5;
     Timer? timer;
@@ -145,7 +144,6 @@ class AdService extends ChangeNotifier {
     }
   }
 
-  // 3. PUBLICITÉ PLEIN ÉCRAN (Transitions naturelles uniquement)
   void registerNavigationTransition(BuildContext context) {
     if (isRewardActive) return;
 
@@ -247,7 +245,6 @@ class AdService extends ChangeNotifier {
   }
 }
 
-// 1. BANNIÈRE PUBLICITAIRE DISCRÈTE
 class DiscreetBannerAd extends StatelessWidget {
   final String placementName;
 
