@@ -19,9 +19,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
   void initState() {
     super.initState();
     
-    // Le Moteur "Sniffer" Yo'art Tech
+    // Le Moteur "Sniffer" Yo'art Tech avec le déguisement Chrome !
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      // LA LIGNE MAGIQUE : Fait croire à Google que c'est un vrai navigateur Chrome et non une application
+      ..setUserAgent('Mozilla/5.0 (Linux; Android 13; SM-S901B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36')
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
