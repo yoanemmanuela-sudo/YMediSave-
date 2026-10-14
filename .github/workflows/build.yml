@@ -47,7 +47,7 @@ jobs:
         EOF
         python generate_icon.py
 
-    - name: Préparation propre du projet Android
+    - name: Préparation propre du projet Android et correction du nom
       run: |
         cp -r lib /tmp/lib_backup
         cp pubspec.yaml /tmp/pubspec_backup.yaml
@@ -55,6 +55,8 @@ jobs:
         rm -rf lib test
         mv /tmp/lib_backup lib
         mv /tmp/pubspec_backup.yaml pubspec.yaml
+        # C'est cette ligne qui force la belle majuscule pour l'écran d'accueil !
+        sed -i 's/android:label="ymedisave"/android:label="YMediSave"/g' android/app/src/main/AndroidManifest.xml
         
     - name: Téléchargement des dépendances
       run: flutter pub get
