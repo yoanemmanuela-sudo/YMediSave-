@@ -16,10 +16,10 @@ dependencies:
   video_player: ^2.8.6
   chewie: ^1.7.5
   just_audio: ^0.9.36
-  # --- Nouveaux Moteurs Yo'art Tech (Système Android) ---
-  flutter_downloader: ^1.11.6 # Téléchargements en barre de notification
-  audio_service: ^0.18.12     # Lecteur dans la barre de notification
-  on_audio_query: ^3.1.12     # Scanner la mémoire interne du téléphone
+  flutter_downloader: ^1.11.6
+  audio_service: ^0.18.12
+  # Version officielle et stable de Flutter
+  on_audio_query: ^2.9.0
 
 dev_dependencies:
   flutter_test:
