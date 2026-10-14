@@ -4,6 +4,7 @@ import '../search/maguy_ai_screen.dart';
 import '../browser/browser_screen.dart';
 import '../player/smart_player_screen.dart';
 import '../../core/services/ad_service.dart';
+import '../browser/sites_directory_screen.dart'; // Lien vers ton nouvel annuaire !
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -114,6 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
+                      
+                      // TES 4 RACCOURCIS (Avec le nouveau bouton Sites !)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Row(
@@ -122,10 +125,33 @@ class _HomeScreenState extends State<HomeScreen> {
                             _buildShortcutIcon(Icons.video_collection, 'YouTube', AppColors.error, 'youtube.com'),
                             _buildShortcutIcon(Icons.music_note_rounded, 'TikTok', Colors.pinkAccent, 'tiktok.com'),
                             _buildShortcutIcon(Icons.facebook_rounded, 'Facebook', Colors.blue, 'facebook.com'),
-                            _buildShortcutIcon(Icons.library_music_rounded, 'Musique', AppColors.secondaryCyan, 'soundcloud.com'),
+                            
+                            // Le nouveau bouton qui ouvre ton annuaire de sites
+                            InkWell(
+                              onTap: () {
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => const SitesDirectoryScreen()));
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.cardDark.withOpacity(0.8),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: AppColors.primaryViolet.withOpacity(0.6), width: 1.5),
+                                    ),
+                                    child: const Icon(Icons.public, color: AppColors.primaryViolet, size: 26),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text('Sites', style: TextStyle(color: AppColors.textPrimaryDark, fontSize: 11, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
+                      
                       const SizedBox(height: 24),
                       _buildSectionHeader('🔥 Vidéos Virales (Tirez pour actualiser)'),
                       _buildHorizontalScroll(Icons.local_fire_department_rounded, AppColors.error, true),
