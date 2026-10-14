@@ -14,7 +14,7 @@ class YMediSaveApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'YMediSave',
+      title: 'YMediSave by Yo\'art Tech',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
@@ -35,7 +35,7 @@ class _InitializationScreenState extends State<InitializationScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainNavigation()),
@@ -51,25 +51,19 @@ class _InitializationScreenState extends State<InitializationScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const Spacer(),
             Container(
               width: 88,
               height: 88,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [
-                    AppColors.accentGradientStart,
-                    AppColors.accentGradientEnd,
-                  ],
+                  colors: [AppColors.accentGradientStart, AppColors.accentGradientEnd],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(
-                Icons.play_arrow_rounded,
-                size: 54,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.play_arrow_rounded, size: 54, color: Colors.white),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -83,11 +77,8 @@ class _InitializationScreenState extends State<InitializationScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Multimédia & Sauvegarde Légale',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondaryDark,
-              ),
+              'Navigateur & Lecteur Multimédia',
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondaryDark),
             ),
             const SizedBox(height: 36),
             const SizedBox(
@@ -98,6 +89,22 @@ class _InitializationScreenState extends State<InitializationScreen> {
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondaryCyan),
               ),
             ),
+            const Spacer(),
+            const Text(
+              'Propulsé par',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondaryDark),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              "Yo'art Tech",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryViolet,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
