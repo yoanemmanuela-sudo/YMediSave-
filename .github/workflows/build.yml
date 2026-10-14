@@ -29,7 +29,7 @@ jobs:
       with:
         python-version: '3.10'
         
-    - name: Le robot Yo'art Tech dessine le logo officiel
+    - name: Le robot Yo'art Tech dessine le logo
       run: |
         pip install Pillow
         cat << 'EOF' > generate_icon.py
@@ -47,7 +47,7 @@ jobs:
         EOF
         python generate_icon.py
 
-    - name: Préparation du projet et Autorisations Arrière-plan
+    - name: Configuration des Notifications et Téléchargements Android
       run: |
         cp -r lib /tmp/lib_backup
         cp pubspec.yaml /tmp/pubspec_backup.yaml
@@ -56,6 +56,16 @@ jobs:
         mv /tmp/lib_backup lib
         mv /tmp/pubspec_backup.yaml pubspec.yaml
         
+        # 1. Création du fichier de sécurité pour les téléchargements
+        mkdir -p android/app/src/main/res/xml
+        cat << 'EOF' > android/app/src/main/res/xml/provider_paths.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <paths>
+            <external-path name="external_files" path="."/>
+        </paths>
+        EOF
+        
+        # 2. Injection des autorisations (Notifications, Média, Fichiers)
         cat << 'EOF' > config_android.py
         import xml.etree.ElementTree as ET
         
@@ -73,7 +83,9 @@ jobs:
             'android.permission.WRITE_EXTERNAL_STORAGE',
             'android.permission.WAKE_LOCK',
             'android.permission.FOREGROUND_SERVICE',
-            'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'
+            'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+            'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
+            'android.permission.POST_NOTIFICATIONS'
         ]
         for p in perms:
             ET.SubElement(root, 'uses-permission', {'{http://schemas.android.com/apk/res/android}name': p})
@@ -81,6 +93,19 @@ jobs:
         app = root.find('application')
         if app is not None:
             app.set('{http://schemas.android.com/apk/res/android}label', 'YMediSave')
+            
+            # Installation du moteur de téléchargement
+            provider = ET.SubElement(app, 'provider', {
+                '{http://schemas.android.com/apk/res/android}name': 'vn.hunghd.flutterdownloader.DownloadedFileProvider',
+                '{http://schemas.android.com/apk/res/android}authorities': 'com.ymedisave.app.flutter_downloader.provider',
+                '{http://schemas.android.com/apk/res/android}exported': 'false',
+                '{http://schemas.android.com/apk/res/android}grantUriPermissions': 'true'
+            })
+            ET.SubElement(provider, 'meta-data', {
+                '{http://schemas.android.com/apk/res/android}name': 'android.support.FILE_PROVIDER_PATHS',
+                '{http://schemas.android.com/apk/res/android}resource': '@xml/provider_paths'
+            })
+            
             activity = app.find('activity')
             if activity is not None:
                 intent_filter = ET.SubElement(activity, 'intent-filter')
