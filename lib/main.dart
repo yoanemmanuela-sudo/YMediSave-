@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'core/constants/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/main_navigation.dart';
@@ -32,16 +33,32 @@ class InitializationScreen extends StatefulWidget {
 }
 
 class _InitializationScreenState extends State<InitializationScreen> {
+  String _statusText = 'Démarrage des moteurs...';
+
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainNavigation()),
-        );
-      }
-    });
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) setState(() => _statusText = 'Vérification des autorisations système...');
+    
+    await [
+      Permission.microphone,
+      Permission.location,
+      Permission.storage,
+    ].request();
+
+    if (mounted) setState(() => _statusText = 'Initialisation de Maguy IA...');
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainNavigation()),
+      );
+    }
   }
 
   @override
@@ -53,57 +70,31 @@ class _InitializationScreenState extends State<InitializationScreen> {
           children: [
             const Spacer(),
             Container(
-              width: 88,
-              height: 88,
+              width: 88, height: 88,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [AppColors.accentGradientStart, AppColors.accentGradientEnd],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: const Icon(Icons.play_arrow_rounded, size: 54, color: Colors.white),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'YMediSave',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-                color: AppColors.textPrimaryDark,
-              ),
-            ),
+            const Text('YMediSave', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: AppColors.textPrimaryDark)),
             const SizedBox(height: 8),
-            const Text(
-              'Navigateur & Lecteur Multimédia',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondaryDark),
-            ),
+            const Text('Navigateur & Lecteur Multimédia', style: TextStyle(fontSize: 14, color: AppColors.textSecondaryDark)),
             const SizedBox(height: 36),
             const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondaryCyan),
-              ),
+              width: 28, height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondaryCyan)),
             ),
+            const SizedBox(height: 16),
+            Text(_statusText, style: const TextStyle(fontSize: 12, color: AppColors.primaryViolet, fontStyle: FontStyle.italic)),
             const Spacer(),
-            const Text(
-              'Propulsé par',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondaryDark),
-            ),
+            const Text('Propulsé par', style: TextStyle(fontSize: 12, color: AppColors.textSecondaryDark)),
             const SizedBox(height: 4),
-            const Text(
-              "Yo'art Tech",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryViolet,
-                letterSpacing: 1.0,
-              ),
-            ),
+            const Text("Yo'art Tech", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryViolet, letterSpacing: 1.0)),
             const SizedBox(height: 32),
           ],
         ),
