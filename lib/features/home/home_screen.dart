@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../search/maguy_ai_screen.dart';
 import '../browser/browser_screen.dart';
+import '../player/smart_player_screen.dart';
 import '../../core/services/ad_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,6 +28,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openBrowser(String url) {
     Navigator.push(context, MaterialPageRoute(builder: (context) => BrowserScreen(initialUrl: url)));
+  }
+
+  void _openPlayer(bool isVideo, int index) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SmartPlayerScreen(
+          title: isVideo ? 'Vidéo Virale ${index + 1}' : 'Titre Tendance ${index + 1}',
+          author: isVideo ? 'Créateur Populaire' : 'Artiste du moment',
+          isVideo: isVideo,
+        ),
+      ),
+    );
   }
 
   @override
@@ -114,10 +128,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 24),
                       _buildSectionHeader('🔥 Vidéos Virales (Tirez pour actualiser)'),
-                      _buildHorizontalScroll(Icons.local_fire_department_rounded, AppColors.error),
+                      _buildHorizontalScroll(Icons.local_fire_department_rounded, AppColors.error, true),
                       const SizedBox(height: 20),
                       _buildSectionHeader('🎵 Top Musiques & Nouveautés'),
-                      _buildHorizontalScroll(Icons.music_note_rounded, AppColors.secondaryCyan),
+                      _buildHorizontalScroll(Icons.music_note_rounded, AppColors.secondaryCyan, false),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -138,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHorizontalScroll(IconData icon, Color color) {
+  Widget _buildHorizontalScroll(IconData icon, Color color, bool isVideo) {
     return SizedBox(
       height: 140,
       child: ListView.builder(
@@ -146,11 +160,14 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: 4,
         itemBuilder: (context, index) {
-          return Container(
-            width: 220,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(12)),
-            child: Center(child: Icon(icon, color: color.withOpacity(0.5), size: 48)),
+          return GestureDetector(
+            onTap: () => _openPlayer(isVideo, index),
+            child: Container(
+              width: 220,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(12)),
+              child: Center(child: Icon(icon, color: color.withOpacity(0.5), size: 48)),
+            ),
           );
         },
       ),
