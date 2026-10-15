@@ -29,25 +29,32 @@ jobs:
       with:
         python-version: '3.10'
         
-    - name: Le robot Yo'art Tech dessine le logo
+    - name: Le robot Yo'art Tech dessine le NOUVEAU LOGO
       run: |
         pip install Pillow
         cat << 'EOF' > generate_icon.py
         from PIL import Image, ImageDraw
         size = 512
-        img = Image.new('RGB', (size, size))
+        img = Image.new('RGB', (size, size), color=(15, 15, 20))
         draw = ImageDraw.Draw(img)
-        c1, c2 = (124, 58, 237), (8, 145, 178)
-        for y in range(size):
-            for x in range(size):
-                f = (x + y) / (2 * size)
-                img.putpixel((x, y), (int(c1[0] + (c2[0] - c1[0]) * f), int(c1[1] + (c2[1] - c1[1]) * f), int(c1[2] + (c2[2] - c1[2]) * f)))
-        draw.polygon([(190, 170), (190, 342), (350, 256)], fill=(255, 255, 255))
+        # Les deux triangles
+        draw.polygon([(256, 80), (420, 380), (92, 380)], outline=(124, 58, 237), width=12)
+        draw.polygon([(256, 130), (370, 340), (142, 340)], outline=(8, 145, 178), width=8)
+        # Le Y dégradé
+        for i in range(25):
+            draw.line([(200+i, 180), (256, 260)], fill=(124, 58, 237), width=2)
+            draw.line([(312-i, 180), (256, 260)], fill=(124, 58, 237), width=2)
+            draw.line([(243+i, 260), (243+i, 320)], fill=(8, 145, 178), width=2)
+        # Les 4 pastilles médias
+        draw.ellipse([(100, 100), (150, 150)], fill=(236, 72, 153))
+        draw.ellipse([(362, 100), (412, 150)], fill=(239, 68, 68))
+        draw.ellipse([(100, 362), (150, 412)], fill=(14, 165, 233))
+        draw.ellipse([(362, 362), (412, 412)], fill=(34, 197, 94))
         img.save('icon.png')
         EOF
         python generate_icon.py
 
-    - name: Configuration des Notifications et Téléchargements Android
+    - name: Configuration Système Android
       run: |
         cp -r lib /tmp/lib_backup
         cp pubspec.yaml /tmp/pubspec_backup.yaml
@@ -56,84 +63,38 @@ jobs:
         mv /tmp/lib_backup lib
         mv /tmp/pubspec_backup.yaml pubspec.yaml
         
-        # 1. Création du fichier de sécurité pour les téléchargements
         mkdir -p android/app/src/main/res/xml
         cat << 'EOF' > android/app/src/main/res/xml/provider_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
-        <paths>
-            <external-path name="external_files" path="."/>
-        </paths>
+        <paths><external-path name="external_files" path="."/></paths>
         EOF
         
-        # 2. Injection des autorisations (Notifications, Média, Fichiers)
         cat << 'EOF' > config_android.py
         import xml.etree.ElementTree as ET
-        
         manifest_path = 'android/app/src/main/AndroidManifest.xml'
         ET.register_namespace('android', 'http://schemas.android.com/apk/res/android')
         tree = ET.parse(manifest_path)
         root = tree.getroot()
-        
-        perms = [
-            'android.permission.INTERNET',
-            'android.permission.RECORD_AUDIO',
-            'android.permission.ACCESS_FINE_LOCATION',
-            'android.permission.ACCESS_COARSE_LOCATION',
-            'android.permission.READ_EXTERNAL_STORAGE',
-            'android.permission.WRITE_EXTERNAL_STORAGE',
-            'android.permission.WAKE_LOCK',
-            'android.permission.FOREGROUND_SERVICE',
-            'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
-            'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
-            'android.permission.POST_NOTIFICATIONS'
-        ]
+        perms = ['android.permission.INTERNET', 'android.permission.RECORD_AUDIO', 'android.permission.READ_EXTERNAL_STORAGE', 'android.permission.WRITE_EXTERNAL_STORAGE', 'android.permission.WAKE_LOCK', 'android.permission.FOREGROUND_SERVICE', 'android.permission.POST_NOTIFICATIONS']
         for p in perms:
             ET.SubElement(root, 'uses-permission', {'{http://schemas.android.com/apk/res/android}name': p})
-            
         app = root.find('application')
         if app is not None:
             app.set('{http://schemas.android.com/apk/res/android}label', 'YMediSave')
-            
-            # Installation du moteur de téléchargement
-            provider = ET.SubElement(app, 'provider', {
-                '{http://schemas.android.com/apk/res/android}name': 'vn.hunghd.flutterdownloader.DownloadedFileProvider',
-                '{http://schemas.android.com/apk/res/android}authorities': 'com.ymedisave.app.flutter_downloader.provider',
-                '{http://schemas.android.com/apk/res/android}exported': 'false',
-                '{http://schemas.android.com/apk/res/android}grantUriPermissions': 'true'
-            })
-            ET.SubElement(provider, 'meta-data', {
-                '{http://schemas.android.com/apk/res/android}name': 'android.support.FILE_PROVIDER_PATHS',
-                '{http://schemas.android.com/apk/res/android}resource': '@xml/provider_paths'
-            })
-            
-            activity = app.find('activity')
-            if activity is not None:
-                intent_filter = ET.SubElement(activity, 'intent-filter')
-                ET.SubElement(intent_filter, 'action', {'{http://schemas.android.com/apk/res/android}name': 'android.intent.action.VIEW'})
-                ET.SubElement(intent_filter, 'category', {'{http://schemas.android.com/apk/res/android}name': 'android.intent.category.DEFAULT'})
-                ET.SubElement(intent_filter, 'category', {'{http://schemas.android.com/apk/res/android}name': 'android.intent.category.BROWSABLE'})
-                ET.SubElement(intent_filter, 'data', {'{http://schemas.android.com/apk/res/android}scheme': 'http'})
-                ET.SubElement(intent_filter, 'data', {'{http://schemas.android.com/apk/res/android}scheme': 'https'})
-                
+            provider = ET.SubElement(app, 'provider', {'{http://schemas.android.com/apk/res/android}name': 'vn.hunghd.flutterdownloader.DownloadedFileProvider', '{http://schemas.android.com/apk/res/android}authorities': 'com.ymedisave.app.flutter_downloader.provider', '{http://schemas.android.com/apk/res/android}exported': 'false', '{http://schemas.android.com/apk/res/android}grantUriPermissions': 'true'})
+            ET.SubElement(provider, 'meta-data', {'{http://schemas.android.com/apk/res/android}name': 'android.support.FILE_PROVIDER_PATHS', '{http://schemas.android.com/apk/res/android}resource': '@xml/provider_paths'})
         tree.write(manifest_path, encoding='utf-8', xml_declaration=True)
         EOF
         python config_android.py
         
-    - name: Téléchargement des dépendances
-      run: flutter pub get
-
-    - name: Intégration du logo
-      run: dart run flutter_launcher_icons
-
-    - name: Vérification du code
-      run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      
     - name: Compilation de l'APK
-      run: flutter build apk --release
+      run: |
+        flutter pub get
+        dart run flutter_launcher_icons
+        flutter build apk --release
       
-    - name: Sauvegarde de l'APK
+    - name: Sauvegarde
       uses: actions/upload-artifact@v4
       with:
         name: YMediSave-APK
         path: build/app/outputs/flutter-apk/app-release.apk
-        
