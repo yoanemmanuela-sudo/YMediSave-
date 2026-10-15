@@ -84,11 +84,42 @@ jobs:
         EOF
         python config_android.py
 
-    - name: Vérification des dépendances (Diagnostic Yo'art Tech)
+    - name: Compilation de l'APK YMediSave
       run: |
         flutter pub get
-        echo "=== ARBRE DES DÉPENDANCES ==="
-        flutter pub deps
-        echo "=== PAQUETS OBSOLÈTES OU INCOMPATIBLES ==="
-        flutter pub outdated
+        
+        # Patch Namespace pour on_audio_query
+        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"' {} +
+        
+        # Forcer Java 17 et Android 34
+        cat << 'EOF' >> android/build.gradle
+        
+        subprojects {
+            afterEvaluate { project ->
+                if (project.hasProperty('android')) {
+                    project.android {
+                        compileSdkVersion 34
+                        compileOptions {
+                            sourceCompatibility JavaVersion.VERSION_17
+                            targetCompatibility JavaVersion.VERSION_17
+                        }
+                    }
+                }
+                tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                    kotlinOptions {
+                        jvmTarget = "17"
+                    }
+                }
+            }
+        }
+        EOF
+        
+        dart run flutter_launcher_icons
+        flutter build apk --release
+      
+    - name: Sauvegarde de l'APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: YMediSave-APK
+        path: build/app/outputs/flutter-apk/app-release.apk
         
