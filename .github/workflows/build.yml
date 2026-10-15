@@ -94,14 +94,14 @@ jobs:
         # PATCH 1 : Réparation du Namespace
         find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"' {} +
         
-        # PATCH 2 & 3 : Forcer Java 17 ET le compileSdk 34 (Android 14)
+        # PATCH 2 & 3 : Forcer Java 17 ET le compileSdk 35 (Android 15)
         cat << 'EOF' >> android/build.gradle
         
         subprojects {
             afterEvaluate { project ->
                 if (project.hasProperty('android')) {
                     project.android {
-                        compileSdkVersion 34
+                        compileSdkVersion 35
                         compileOptions {
                             sourceCompatibility JavaVersion.VERSION_17
                             targetCompatibility JavaVersion.VERSION_17
@@ -125,3 +125,4 @@ jobs:
       with:
         name: YMediSave-APK
         path: build/app/outputs/flutter-apk/app-release.apk
+        
