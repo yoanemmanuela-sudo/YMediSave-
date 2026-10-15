@@ -87,20 +87,21 @@ jobs:
         EOF
         python config_android.py
         
-    - name: Compilation de l'APK (avec réparation Namespace et synchronisation JVM)
+    - name: Compilation de l'APK (LE PATCH ULTIME)
       run: |
         flutter pub get
         
         # PATCH 1 : Réparation du Namespace
         find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"' {} +
         
-        # PATCH 2 : Forcer tous les modules à utiliser Java 17
+        # PATCH 2 & 3 : Forcer Java 17 ET le compileSdk 34 (Android 14)
         cat << 'EOF' >> android/build.gradle
         
         subprojects {
             afterEvaluate { project ->
                 if (project.hasProperty('android')) {
                     project.android {
+                        compileSdkVersion 34
                         compileOptions {
                             sourceCompatibility JavaVersion.VERSION_17
                             targetCompatibility JavaVersion.VERSION_17
