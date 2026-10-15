@@ -1,7 +1,7 @@
 name: ymedisave
 description: "YMediSave - Lecteur et gestionnaire multimédia légal et sécurisé."
 publish_to: 'none'
-version: 1.0.0+9
+version: 1.0.0+10
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -18,8 +18,7 @@ dependencies:
   just_audio: ^0.9.36
   flutter_downloader: ^1.11.6
   audio_service: ^0.18.12
-  # Version officielle et stable de Flutter
-  on_audio_query: ^2.9.0
+  on_audio_query: ^2.9.0 # Version Officielle Stable !
 
 dev_dependencies:
   flutter_test:
@@ -34,4 +33,3 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "icon.png"
-  
