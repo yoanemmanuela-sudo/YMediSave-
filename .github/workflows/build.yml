@@ -37,15 +37,12 @@ jobs:
         size = 512
         img = Image.new('RGB', (size, size), color=(15, 15, 20))
         draw = ImageDraw.Draw(img)
-        # Les deux triangles
         draw.polygon([(256, 80), (420, 380), (92, 380)], outline=(124, 58, 237), width=12)
         draw.polygon([(256, 130), (370, 340), (142, 340)], outline=(8, 145, 178), width=8)
-        # Le Y dégradé
         for i in range(25):
             draw.line([(200+i, 180), (256, 260)], fill=(124, 58, 237), width=2)
             draw.line([(312-i, 180), (256, 260)], fill=(124, 58, 237), width=2)
             draw.line([(243+i, 260), (243+i, 320)], fill=(8, 145, 178), width=2)
-        # Les 4 pastilles médias
         draw.ellipse([(100, 100), (150, 150)], fill=(236, 72, 153))
         draw.ellipse([(362, 100), (412, 150)], fill=(239, 68, 68))
         draw.ellipse([(100, 362), (150, 412)], fill=(14, 165, 233))
@@ -86,43 +83,12 @@ jobs:
         tree.write(manifest_path, encoding='utf-8', xml_declaration=True)
         EOF
         python config_android.py
-        
-    - name: Compilation de l'APK (LE PATCH ULTIME)
+
+    - name: Vérification des dépendances (Diagnostic Yo'art Tech)
       run: |
         flutter pub get
-        
-        # PATCH 1 : Réparation du Namespace
-        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"' {} +
-        
-        # PATCH 2 & 3 : Forcer Java 17 ET le compileSdk 35 (Android 15)
-        cat << 'EOF' >> android/build.gradle
-        
-        subprojects {
-            afterEvaluate { project ->
-                if (project.hasProperty('android')) {
-                    project.android {
-                        compileSdkVersion 35
-                        compileOptions {
-                            sourceCompatibility JavaVersion.VERSION_17
-                            targetCompatibility JavaVersion.VERSION_17
-                        }
-                    }
-                }
-                tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                    kotlinOptions {
-                        jvmTarget = "17"
-                    }
-                }
-            }
-        }
-        EOF
-        
-        dart run flutter_launcher_icons
-        flutter build apk --release
-      
-    - name: Sauvegarde
-      uses: actions/upload-artifact@v4
-      with:
-        name: YMediSave-APK
-        path: build/app/outputs/flutter-apk/app-release.apk
+        echo "=== ARBRE DES DÉPENDANCES ==="
+        flutter pub deps
+        echo "=== PAQUETS OBSOLÈTES OU INCOMPATIBLES ==="
+        flutter pub outdated
         
