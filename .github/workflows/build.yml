@@ -87,9 +87,13 @@ jobs:
         EOF
         python config_android.py
         
-    - name: Compilation de l'APK
+    - name: Compilation de l'APK (avec réparation Namespace)
       run: |
         flutter pub get
+        
+        # LE PATCH MAGIQUE YO'ART TECH :
+        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"' {} +
+        
         dart run flutter_launcher_icons
         flutter build apk --release
       
