@@ -13,6 +13,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _controller;
   late Animation<double> _pulseAnimation;
   late Animation<double> _spinAnimation;
+  
+  // Variable pour contrôler l'apparition de la signature
+  bool _showSignature = false;
 
   @override
   void initState() {
@@ -23,8 +26,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     
     _controller.repeat(reverse: true);
 
-    // Navigue vers l'accueil après 4 secondes
-    Future.delayed(const Duration(seconds: 4), () {
+    // Fait apparaître Yo'art Tech après 2 secondes
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _showSignature = true;
+        });
+      }
+    });
+
+    // Navigue vers l'accueil après 5 secondes (laisse le temps d'admirer le logo)
+    Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
       }
@@ -74,10 +86,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       width: 220, height: 220,
                       child: Stack(
                         children: [
-                          Positioned(top: 0, left: 95, child: _buildMediaIcon(Icons.music_note_rounded, Colors.pinkAccent)),
-                          Positioned(bottom: 0, left: 95, child: _buildMediaIcon(Icons.download_rounded, Colors.green)),
-                          Positioned(left: 0, top: 95, child: _buildMediaIcon(Icons.public, Colors.blue)),
-                          Positioned(right: 0, top: 95, child: _buildMediaIcon(Icons.play_arrow_rounded, Colors.red)),
+                          Positioned(top: 0, left: 93, child: _buildMediaIcon(Icons.music_note_rounded, Colors.pinkAccent)),
+                          Positioned(bottom: 0, left: 93, child: _buildMediaIcon(Icons.download_rounded, Colors.green)),
+                          Positioned(left: 0, top: 93, child: _buildMediaIcon(Icons.public, Colors.blue)),
+                          Positioned(right: 0, top: 93, child: _buildMediaIcon(Icons.play_arrow_rounded, Colors.red)),
                         ],
                       ),
                     ),
@@ -100,7 +112,25 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               'Qualité audio signée Google',
               style: TextStyle(color: AppColors.textSecondaryDark, fontSize: 14),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
+
+            // L'APPARITION DE TA SIGNATURE YO'ART TECH
+            AnimatedOpacity(
+              opacity: _showSignature ? 1.0 : 0.0,
+              duration: const Duration(seconds: 2), // Effet de fondu très doux
+              child: const Padding(
+                padding: EdgeInsets.only(bottom: 20),
+                child: Text(
+                  'Créé par Yo\'art Tech',
+                  style: TextStyle(
+                    color: AppColors.primaryViolet, 
+                    fontSize: 15, 
+                    fontWeight: FontWeight.bold, 
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
