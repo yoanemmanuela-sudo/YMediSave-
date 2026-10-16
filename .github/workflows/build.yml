@@ -84,12 +84,15 @@ jobs:
         EOF
         python config_android.py
 
-    - name: Compilation de l'APK YMediSave
+    - name: Compilation de l'APK YMediSave (AVEC BOOST RAM)
       run: |
         flutter pub get
         
         # Patch Namespace pour on_audio_query
         find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"' {} +
+        
+        # LE BOOST YO'ART TECH : Donner 4 Go de RAM au robot pour la compilation finale
+        echo "org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G" >> android/gradle.properties
         
         # Forcer Java 17 et Android 35
         cat << 'EOF' >> android/build.gradle
