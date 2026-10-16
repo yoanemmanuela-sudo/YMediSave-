@@ -84,17 +84,17 @@ jobs:
         EOF
         python config_android.py
 
-    - name: Compilation de l'APK YMediSave (AVEC BOOST RAM)
+    - name: Compilation de l'APK YMediSave
       run: |
         flutter pub get
         
         # Patch Namespace pour on_audio_query
         find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"' {} +
         
-        # LE BOOST YO'ART TECH : Donner 4 Go de RAM au robot pour la compilation finale
-        echo "org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G" >> android/gradle.properties
+        # Équilibrage de la mémoire pour éviter le crash du serveur
+        echo "org.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=1G" >> android/gradle.properties
         
-        # Forcer Java 17 et Android 35
+        # Forcer Java 17, Android 35 et activer MULTIDEX
         cat << 'EOF' >> android/build.gradle
         
         subprojects {
@@ -102,6 +102,9 @@ jobs:
                 if (project.hasProperty('android')) {
                     project.android {
                         compileSdkVersion 35
+                        defaultConfig {
+                            multiDexEnabled true
+                        }
                         compileOptions {
                             sourceCompatibility JavaVersion.VERSION_17
                             targetCompatibility JavaVersion.VERSION_17
@@ -118,7 +121,13 @@ jobs:
         EOF
         
         dart run flutter_launcher_icons
-        flutter build apk --release
+        
+        # Nettoyage profond pour éviter les fichiers corrompus
+        flutter clean
+        flutter pub get
+        
+        # Compilation bavarde (verbose) pour tout voir
+        flutter build apk --release -v
       
     - name: Sauvegarde de l'APK
       uses: actions/upload-artifact@v4
