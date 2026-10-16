@@ -91,14 +91,14 @@ jobs:
         # Patch Namespace pour on_audio_query
         find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"' {} +
         
-        # Forcer Java 17 et Android 34
+        # Forcer Java 17 et Android 35
         cat << 'EOF' >> android/build.gradle
         
         subprojects {
             afterEvaluate { project ->
                 if (project.hasProperty('android')) {
                     project.android {
-                        compileSdkVersion 34
+                        compileSdkVersion 35
                         compileOptions {
                             sourceCompatibility JavaVersion.VERSION_17
                             targetCompatibility JavaVersion.VERSION_17
