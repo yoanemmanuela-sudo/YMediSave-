@@ -51,14 +51,12 @@ jobs:
         EOF
         python generate_icon.py
 
-    - name: Configuration Système Android
+    - name: Configuration Système Android (Propre & Isolée)
       run: |
-        cp -r lib /tmp/lib_backup
-        cp pubspec.yaml /tmp/pubspec_backup.yaml
-        flutter create --org com.ymedisave.app --project-name ymedisave .
-        rm -rf lib test
-        mv /tmp/lib_backup lib
-        mv /tmp/pubspec_backup.yaml pubspec.yaml
+        # Générer le dossier Android dans un espace isolé pour éviter le bug "Already watching path"
+        flutter create --org com.ymedisave.app --project-name ymedisave /tmp/ymedisave_temp
+        cp -r /tmp/ymedisave_temp/android .
+        rm -rf /tmp/ymedisave_temp
         
         mkdir -p android/app/src/main/res/xml
         cat << 'EOF' > android/app/src/main/res/xml/provider_paths.xml
@@ -84,50 +82,41 @@ jobs:
         EOF
         python config_android.py
 
-    - name: Compilation de l'APK YMediSave
+    - name: Compilation de l'APK YMediSave (Compatible KTS)
       run: |
         flutter pub get
+        dart run flutter_launcher_icons
         
-        # Patch Namespace pour on_audio_query
-        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"' {} +
+        # 1. Patch du plugin on_audio_query_android (Namespace + SDK 35 + Java 17)
+        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"\n    compileSdkVersion 35\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }' {} +
+        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i 's/jvmTarget = .*/jvmTarget = "17"/g' {} +
         
-        # Équilibrage de la mémoire pour éviter le crash du serveur
-        echo "org.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=1G" >> android/gradle.properties
+        # 2. Mise à jour du vrai fichier android/app/build.gradle.kts pour Android 35 et Multidex
+        if [ -f "android/app/build.gradle.kts" ]; then
+          sed -i 's/compileSdk = .*/compileSdk = 35/g' android/app/build.gradle.kts
+          sed -i 's/minSdk = .*/minSdk = 21\n        multiDexEnabled = true/g' android/app/build.gradle.kts
+        fi
         
-        # Forcer Java 17, Android 35 et activer MULTIDEX
-        cat << 'EOF' >> android/build.gradle
-        
+        # 3. Synchronisation globale Kotlin JVM 17 dans android/build.gradle.kts
+        if [ -f "android/build.gradle.kts" ]; then
+          cat << 'EOF' >> android/build.gradle.kts
+
         subprojects {
-            afterEvaluate { project ->
-                if (project.hasProperty('android')) {
-                    project.android {
-                        compileSdkVersion 35
-                        defaultConfig {
-                            multiDexEnabled true
-                        }
-                        compileOptions {
-                            sourceCompatibility JavaVersion.VERSION_17
-                            targetCompatibility JavaVersion.VERSION_17
-                        }
-                    }
+            tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+                kotlinOptions {
+                    jvmTarget = "17"
                 }
-                tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                    kotlinOptions {
-                        jvmTarget = "17"
-                    }
-                }
+            }
+            tasks.withType<JavaCompile>().configureEach {
+                sourceCompatibility = "17"
+                targetCompatibility = "17"
             }
         }
         EOF
+        fi
         
-        dart run flutter_launcher_icons
-        
-        # Nettoyage profond pour éviter les fichiers corrompus
-        flutter clean
-        flutter pub get
-        
-        # Compilation bavarde (verbose) pour tout voir
-        flutter build apk --release -v
+        # 4. Compilation propre (sans le mode -v qui sature l'affichage)
+        flutter build apk --release
       
     - name: Sauvegarde de l'APK
       uses: actions/upload-artifact@v4
