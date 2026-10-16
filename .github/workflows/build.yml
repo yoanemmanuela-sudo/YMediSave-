@@ -1,127 +1,382 @@
 name: Build YMediSave APK
 
 on:
+name: Build YMediSave APK
+
+on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Récupération du code
-      uses: actions/checkout@v4
-      
-    - name: Configuration de Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'zulu'
-        java-version: '17'
-        
-    - name: Configuration de Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        channel: 'stable'
+      # 1. Récupération du projet
+      - name: Récupération du code
+        uses: actions/checkout@v4
 
-    - name: Installer l'outil de dessin Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        
-    - name: Le robot Yo'art Tech dessine le NOUVEAU LOGO
-      run: |
-        pip install Pillow
-        cat << 'EOF' > generate_icon.py
-        from PIL import Image, ImageDraw
-        size = 512
-        img = Image.new('RGB', (size, size), color=(15, 15, 20))
-        draw = ImageDraw.Draw(img)
-        draw.polygon([(256, 80), (420, 380), (92, 380)], outline=(124, 58, 237), width=12)
-        draw.polygon([(256, 130), (370, 340), (142, 340)], outline=(8, 145, 178), width=8)
-        for i in range(25):
-            draw.line([(200+i, 180), (256, 260)], fill=(124, 58, 237), width=2)
-            draw.line([(312-i, 180), (256, 260)], fill=(124, 58, 237), width=2)
-            draw.line([(243+i, 260), (243+i, 320)], fill=(8, 145, 178), width=2)
-        draw.ellipse([(100, 100), (150, 150)], fill=(236, 72, 153))
-        draw.ellipse([(362, 100), (412, 150)], fill=(239, 68, 68))
-        draw.ellipse([(100, 362), (150, 412)], fill=(14, 165, 233))
-        draw.ellipse([(362, 362), (412, 412)], fill=(34, 197, 94))
-        img.save('icon.png')
-        EOF
-        python generate_icon.py
+      # 2. Configuration de Java 17
+      - name: Configuration de Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
 
-    - name: Configuration Système Android (Propre & Isolée)
-      run: |
-        flutter create --platforms=android --org com.ymedisave.app --project-name ymedisave /tmp/ymedisave_temp
-        cp -r /tmp/ymedisave_temp/android .
-        rm -rf /tmp/ymedisave_temp
-        
-        mkdir -p android/app/src/main/res/xml
-        cat << 'EOF' > android/app/src/main/res/xml/provider_paths.xml
-        <?xml version="1.0" encoding="utf-8"?>
-        <paths><external-path name="external_files" path="."/></paths>
-        EOF
-        
-        cat << 'EOF' > config_android.py
-        import xml.etree.ElementTree as ET
-        manifest_path = 'android/app/src/main/AndroidManifest.xml'
-        ET.register_namespace('android', 'http://schemas.android.com/apk/res/android')
-        tree = ET.parse(manifest_path)
-        root = tree.getroot()
-        perms = ['android.permission.INTERNET', 'android.permission.RECORD_AUDIO', 'android.permission.READ_EXTERNAL_STORAGE', 'android.permission.WRITE_EXTERNAL_STORAGE', 'android.permission.WAKE_LOCK', 'android.permission.FOREGROUND_SERVICE', 'android.permission.POST_NOTIFICATIONS']
-        for p in perms:
-            ET.SubElement(root, 'uses-permission', {'{http://schemas.android.com/apk/res/android}name': p})
-        app = root.find('application')
-        if app is not None:
-            app.set('{http://schemas.android.com/apk/res/android}label', 'YMediSave')
-            provider = ET.SubElement(app, 'provider', {'{http://schemas.android.com/apk/res/android}name': 'vn.hunghd.flutterdownloader.DownloadedFileProvider', '{http://schemas.android.com/apk/res/android}authorities': 'com.ymedisave.app.flutter_downloader.provider', '{http://schemas.android.com/apk/res/android}exported': 'false', '{http://schemas.android.com/apk/res/android}grantUriPermissions': 'true'})
-            ET.SubElement(provider, 'meta-data', {'{http://schemas.android.com/apk/res/android}name': 'android.support.FILE_PROVIDER_PATHS', '{http://schemas.android.com/apk/res/android}resource': '@xml/provider_paths'})
-        tree.write(manifest_path, encoding='utf-8', xml_declaration=True)
-        EOF
-        python config_android.py
+      # 3. Installation de Flutter
+      - name: Configuration de Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
 
-    - name: Compilation de l'APK YMediSave (Compatible KTS Moderne)
-      run: |
-        sed -i 's/ios: true/ios: false/g' pubspec.yaml
-        
-        flutter pub get
-        dart run flutter_launcher_icons
-        
-        # 1. Patch du plugin on_audio_query_android
-        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"\n    compileSdkVersion 35\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }' {} +
-        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i 's/jvmTarget = .*/jvmTarget = "17"/g' {} +
-        
-        # 2. Mise à jour de android/app/build.gradle.kts pour Android 35 et Multidex
-        if [ -f "android/app/build.gradle.kts" ]; then
-          sed -i 's/compileSdk = .*/compileSdk = 35/g' android/app/build.gradle.kts
-          sed -i 's/minSdk = .*/minSdk = 21\n        multiDexEnabled = true/g' android/app/build.gradle.kts
-        fi
-        
-        # 3. Synchronisation globale Kotlin JVM 17 avec la syntaxe moderne compilerOptions DSL
-        if [ -f "android/build.gradle.kts" ]; then
-          cat << 'EOF' >> android/build.gradle.kts
+      # 4. Installation de Python
+      - name: Configuration de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-        subprojects {
-            tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-                compilerOptions {
-                    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-                }
-            }
-            tasks.withType<JavaCompile>().configureEach {
-                sourceCompatibility = JavaVersion.VERSION_17
-                targetCompatibility = JavaVersion.VERSION_17
-            }
-        }
-        EOF
-        fi
-        
-        # 4. Lancement de la compilation finale de l'APK
-        flutter build apk --release
-      
-    - name: Sauvegarde de l'APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: YMediSave-APK
-        path: build/app/outputs/flutter-apk/app-release.apk
-        
+      # 5. Génération du logo YMediSave
+      - name: Génération du logo YMediSave
+        run: |
+          pip install Pillow
+
+          cat <<'PYTHON' > generate_icon.py
+          from PIL import Image, ImageDraw
+
+          size = 512
+          img = Image.new("RGB", (size, size), (15, 15, 20))
+          draw = ImageDraw.Draw(img)
+
+          draw.polygon(
+              [(256, 80), (420, 380), (92, 380)],
+              outline=(124, 58, 237),
+              width=12
+          )
+
+          draw.polygon(
+              [(256, 130), (370, 340), (142, 340)],
+              outline=(8, 145, 178),
+              width=8
+          )
+
+          for i in range(25):
+              draw.line(
+                  [(200+i, 180), (256, 260)],
+                  fill=(124, 58, 237),
+                  width=2
+              )
+              draw.line(
+                  [(312-i, 180), (256, 260)],
+                  fill=(124, 58, 237),
+                  width=2
+              )
+              draw.line(
+                  [(243+i, 260), (243+i, 320)],
+                  fill=(8, 145, 178),
+                  width=2
+              )
+
+          draw.ellipse(
+              [(100, 100), (150, 150)],
+              fill=(236, 72, 153)
+          )
+          draw.ellipse(
+              [(362, 100), (412, 150)],
+              fill=(239, 68, 68)
+          )
+          draw.ellipse(
+              [(100, 362), (150, 412)],
+              fill=(14, 165, 233)
+          )
+          draw.ellipse(
+              [(362, 362), (412, 412)],
+              fill=(34, 197, 94)
+          )
+
+          img.save("icon.png")
+          PYTHON
+
+          python generate_icon.py
+
+      # 6. Génération de la structure Android
+      - name: Configuration Android
+        run: |
+          flutter create \
+            --platforms=android \
+            --org com.ymedisave.app \
+            --project-name ymedisave \
+            /tmp/ymedisave_temp
+
+          cp -r /tmp/ymedisave_temp/android .
+          rm -rf /tmp/ymedisave_temp
+
+          mkdir -p android/app/src/main/res/xml
+
+          cat <<'XML' > android/app/src/main/res/xml/provider_paths.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths>
+              <external-path
+                  name="external_files"
+                  path="."/>
+          </paths>
+          XML
+
+          cat <<'PYTHON' > config_android.py
+          import xml.etree.ElementTree as ET
+
+          manifest_path = "android/app/src/main/AndroidManifest.xml"
+
+          ET.register_namespace(
+              "android",
+              "http://schemas.android.com/apk/res/android"
+          )
+
+          tree = ET.parse(manifest_path)
+          root = tree.getroot()
+
+          android_ns = "{http://schemas.android.com/apk/res/android}"
+
+          permissions = [
+              "android.permission.INTERNET",
+              "android.permission.RECORD_AUDIO",
+              "android.permission.READ_EXTERNAL_STORAGE",
+              "android.permission.WRITE_EXTERNAL_STORAGE",
+              "android.permission.WAKE_LOCK",
+              "android.permission.FOREGROUND_SERVICE",
+              "android.permission.POST_NOTIFICATIONS",
+          ]
+
+          existing_permissions = {
+              element.get(android_ns + "name")
+              for element in root.findall("uses-permission")
+          }
+
+          for permission in permissions:
+              if permission not in existing_permissions:
+                  ET.SubElement(
+                      root,
+                      "uses-permission",
+                      {android_ns + "name": permission}
+                  )
+
+          app = root.find("application")
+
+          if app is not None:
+              app.set(android_ns + "label", "YMediSave")
+
+              provider_name = (
+                  "vn.hunghd.flutterdownloader.DownloadedFileProvider"
+              )
+
+              authority = (
+                  "com.ymedisave.app.flutter_downloader.provider"
+              )
+
+              provider_exists = any(
+                  item.get(android_ns + "name") == provider_name
+                  for item in app.findall("provider")
+              )
+
+              if not provider_exists:
+                  provider = ET.SubElement(
+                      app,
+                      "provider",
+                      {
+                          android_ns + "name": provider_name,
+                          android_ns + "authorities": authority,
+                          android_ns + "exported": "false",
+                          android_ns + "grantUriPermissions": "true",
+                      }
+                  )
+
+                  ET.SubElement(
+                      provider,
+                      "meta-data",
+                      {
+                          android_ns + "name":
+                              "android.support.FILE_PROVIDER_PATHS",
+                          android_ns + "resource": "@xml/provider_paths",
+                      }
+                  )
+
+          tree.write(
+              manifest_path,
+              encoding="utf-8",
+              xml_declaration=True
+          )
+          PYTHON
+
+          python config_android.py
+
+      # 7. Installation des dépendances Flutter
+      - name: Installation des dépendances
+        run: |
+          if [ ! -f pubspec.yaml ]; then
+            echo "ERREUR : pubspec.yaml est absent du projet."
+            exit 1
+          fi
+
+          flutter pub get
+
+      # 8. Correction du plugin on_audio_query_android
+      - name: Correction du plugin audio Android
+        run: |
+          python - <<'PYTHON'
+          from pathlib import Path
+
+          roots = [
+              Path.home() / ".pub-cache/hosted/pub.dev",
+              Path.home() / ".pub-cache/hosted/pub.dartlang.org",
+          ]
+
+          patched = False
+
+          for root in roots:
+              if not root.exists():
+                  continue
+
+              for gradle_file in root.glob(
+                  "on_audio_query_android-*/android/build.gradle"
+              ):
+                  text = gradle_file.read_text()
+
+                  if "namespace" not in text:
+                      text = text.replace(
+                          "android {",
+                          'android {\n    namespace "com.lucasjosino.on_audio_query"',
+                          1
+                      )
+
+                  gradle_file.write_text(text)
+                  print(f"Plugin audio examiné : {gradle_file}")
+                  patched = True
+
+          if not patched:
+              print(
+                  "Aucun fichier Gradle on_audio_query_android "
+                  "trouvé dans le cache. Vérification ultérieure."
+              )
+          PYTHON
+
+      # 9. Configuration Android et Kotlin
+      - name: Configuration Java et Kotlin
+        run: |
+          python - <<'PYTHON'
+          from pathlib import Path
+          import re
+
+          app_gradle = Path("android/app/build.gradle.kts")
+
+          if app_gradle.exists():
+              text = app_gradle.read_text()
+
+              text = re.sub(
+                  r'compileSdk\s*=\s*\d+',
+                  'compileSdk = 35',
+                  text
+              )
+
+              if "multiDexEnabled" not in text:
+                  text = re.sub(
+                      r'(defaultConfig\s*\{)',
+                      r'\1\n        multiDexEnabled = true',
+                      text,
+                      count=1
+                  )
+
+              if "compileOptions" not in text:
+                  text = re.sub(
+                      r'(android\s*\{)',
+                      r'''\1
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+          ''',
+                      text,
+                      count=1
+                  )
+
+              app_gradle.write_text(text)
+              print("Configuration app/build.gradle.kts mise à jour.")
+
+          elif Path("android/app/build.gradle").exists():
+              app_gradle = Path("android/app/build.gradle")
+              text = app_gradle.read_text()
+
+              text = re.sub(
+                  r'compileSdkVersion\s+\d+',
+                  'compileSdkVersion 35',
+                  text
+              )
+
+              app_gradle.write_text(text)
+              print("Configuration app/build.gradle mise à jour.")
+
+          root_gradle = Path("android/build.gradle.kts")
+
+          if root_gradle.exists():
+              text = root_gradle.read_text()
+
+              # Configuration Kotlin uniquement.
+              # Ne pas ajouter d'affectations Java de type String
+              # dans ce fichier racine.
+              if "JvmTarget.JVM_17" not in text:
+                  text += """
+
+          subprojects {
+              tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+                  compilerOptions {
+                      jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+                  }
+              }
+          }
+          """
+
+              root_gradle.write_text(text)
+              print("Configuration Kotlin JVM 17 appliquée.")
+
+          print("Configuration Android terminée.")
+          PYTHON
+
+      # 10. Génération de l'icône Android
+      - name: Génération de l'icône de lancement
+        run: |
+          if grep -q "flutter_launcher_icons:" pubspec.yaml; then
+            dart run flutter_launcher_icons
+          else
+            echo "Configuration flutter_launcher_icons absente."
+            echo "L'APK sera compilé avec l'icône Android par défaut."
+          fi
+
+      # 11. Vérification des fichiers
+      - name: Vérification du projet Android
+        run: |
+          echo "Version Flutter :"
+          flutter --version
+
+          echo "Version Java :"
+          java -version
+
+          echo "Fichiers Gradle détectés :"
+          find android -maxdepth 3 \
+            \( -name "build.gradle" -o -name "build.gradle.kts" \) \
+            -print
+
+      # 12. Compilation de l'APK
+      - name: Compilation de YMediSave
+        run: |
+          flutter build apk --release
+
+      # 13. Publication de l'APK
+      - name: Sauvegarde de l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: YMediSave-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
