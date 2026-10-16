@@ -20,10 +20,10 @@ dependencies:
   audio_service: ^0.18.12
   on_audio_query: ^2.9.0
 
-# LE BOUCLIER YO'ART TECH : Bloque l'erreur Baklava
+# LE BOUCLIER YO'ART TECH CORRIGÉ
 dependency_overrides:
-  sqflite_android: 2.3.0
-  sqflite: 2.3.0
+  sqflite_android: ^2.2.2
+  sqflite: ^2.3.3
 
 dev_dependencies:
   flutter_test:
