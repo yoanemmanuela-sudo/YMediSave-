@@ -53,8 +53,8 @@ jobs:
 
     - name: Configuration Système Android (Propre & Isolée)
       run: |
-        # Générer le dossier Android dans un espace isolé pour éviter le bug "Already watching path"
-        flutter create --org com.ymedisave.app --project-name ymedisave /tmp/ymedisave_temp
+        # Générer uniquement la plateforme Android dans un espace isolé
+        flutter create --platforms=android --org com.ymedisave.app --project-name ymedisave /tmp/ymedisave_temp
         cp -r /tmp/ymedisave_temp/android .
         rm -rf /tmp/ymedisave_temp
         
@@ -84,6 +84,9 @@ jobs:
 
     - name: Compilation de l'APK YMediSave (Compatible KTS)
       run: |
+        # Désactiver la génération d'icône iOS car nous compilons uniquement pour Android
+        sed -i 's/ios: true/ios: false/g' pubspec.yaml
+        
         flutter pub get
         dart run flutter_launcher_icons
         
@@ -115,7 +118,7 @@ jobs:
         EOF
         fi
         
-        # 4. Compilation propre (sans le mode -v qui sature l'affichage)
+        # 4. Compilation finale
         flutter build apk --release
       
     - name: Sauvegarde de l'APK
