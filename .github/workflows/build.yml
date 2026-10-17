@@ -53,6 +53,7 @@ jobs:
 
     - name: Configuration Système Android (Propre & Isolée)
       run: |
+        rm -rf android ios
         flutter create --platforms=android --org com.ymedisave.app --project-name ymedisave /tmp/ymedisave_temp
         cp -r /tmp/ymedisave_temp/android .
         rm -rf /tmp/ymedisave_temp
@@ -81,43 +82,92 @@ jobs:
         EOF
         python config_android.py
 
-    - name: Compilation de l'APK YMediSave (Compatible KTS Moderne)
+    - name: Compilation Finale de l'APK YMediSave
       run: |
         sed -i 's/ios: true/ios: false/g' pubspec.yaml
         
         flutter pub get
         dart run flutter_launcher_icons
         
-        # 1. Patch du plugin on_audio_query_android
-        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i '/android {/a \    namespace "com.lucasjosino.on_audio_query"\n    compileSdkVersion 35\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }' {} +
-        find ~/.pub-cache/hosted/pub.dev -name "build.gradle" -path "*/on_audio_query_android-*/android/build.gradle" -exec sed -i 's/jvmTarget = .*/jvmTarget = "17"/g' {} +
-        
-        # 2. Mise à jour de android/app/build.gradle.kts pour Android 35 et Multidex
-        if [ -f "android/app/build.gradle.kts" ]; then
-          sed -i 's/compileSdk = .*/compileSdk = 35/g' android/app/build.gradle.kts
-          sed -i 's/minSdk = .*/minSdk = 21\n        multiDexEnabled = true/g' android/app/build.gradle.kts
-        fi
-        
-        # 3. Synchronisation globale Kotlin JVM 17 avec la syntaxe moderne compilerOptions DSL
-        if [ -f "android/build.gradle.kts" ]; then
-          cat << 'EOF' >> android/build.gradle.kts
+        # Script Python intelligent pour réparer TOUS les plugins et l'application
+        cat << 'EOF' > patch_all.py
+        import os, glob, re
+        import xml.etree.ElementTree as ET
 
-        subprojects {
-            tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-                compilerOptions {
-                    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-                }
+        # 1. Patcher tous les plugins dans le cache pub.dev
+        pub_cache = os.path.expanduser('~/.pub-cache/hosted/pub.dev')
+        for root_dir, dirs, files in os.walk(pub_cache):
+            if os.path.basename(root_dir) == 'android' and 'build.gradle' in files:
+                bg_path = os.path.join(root_dir, 'build.gradle')
+                manifest_path = os.path.join(root_dir, 'src/main/AndroidManifest.xml')
+                
+                with open(bg_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Extraire le package du Manifest si namespace est manquant
+                pkg_name = None
+                if os.path.exists(manifest_path):
+                    try:
+                        tree = ET.parse(manifest_path)
+                        pkg_name = tree.getroot().attrib.get('package')
+                    except Exception:
+                        pass
+                if not pkg_name and 'on_audio_query' in root_dir:
+                    pkg_name = 'com.lucasjosino.on_audio_query'
+                
+                if 'namespace' not in content and pkg_name:
+                    content = re.sub(r'android\s*\{', f'android {{\n    namespace "{pkg_name}"', content, count=1)
+                
+                # Forcer compileSdkVersion 35 dans chaque plugin
+                content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 35', content)
+                content = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 35', content)
+                
+                # Aligner Java et Kotlin sur 17 dans chaque plugin
+                content = re.sub(r'JavaVersion\.VERSION_1_8', 'JavaVersion.VERSION_17', content)
+                content = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', content)
+                content = re.sub(r"jvmTarget\s*=\s*['\"].*?['\"]", 'jvmTarget = "17"', content)
+                
+                with open(bg_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+
+        # 2. Patcher android/app/build.gradle.kts (ou .gradle)
+        for app_bg in ['android/app/build.gradle.kts', 'android/app/build.gradle']:
+            if os.path.exists(app_bg):
+                with open(app_bg, 'r', encoding='utf-8') as f:
+                    c = f.read()
+                c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 35', c)
+                c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 35', c)
+                c = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 21\n        multiDexEnabled = true', c)
+                c = re.sub(r'minSdkVersion\s+[^\n]+', 'minSdkVersion 21\n        multiDexEnabled true', c)
+                with open(app_bg, 'w', encoding='utf-8') as f:
+                    f.write(c)
+        EOF
+        python patch_all.py
+
+        # 3. Créer un fichier init.gradle universel pour synchroniser Java/Kotlin 17 sans toucher à build.gradle.kts
+        mkdir -p ~/.gradle/init.d
+        cat << 'EOF' > ~/.gradle/init.d/ymedisave_jvm17.gradle
+        allprojects {
+            tasks.withType(JavaCompile).configureEach {
+                sourceCompatibility = JavaVersion.VERSION_17.toString()
+                targetCompatibility = JavaVersion.VERSION_17.toString()
             }
-            tasks.withType<JavaCompile>().configureEach {
-                sourceCompatibility = JavaVersion.VERSION_17
-                targetCompatibility = JavaVersion.VERSION_17
+            tasks.matching { it.name.contains("compile") && it.name.contains("Kotlin") }.configureEach { task ->
+                try {
+                    task.compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+                } catch (Exception e) {
+                    try {
+                        task.kotlinOptions.jvmTarget = "17"
+                    } catch (Exception ex) {}
+                }
             }
         }
         EOF
-        fi
+
+        # 4. Optimisation mémoire et désactivation de la compression d'icônes (évite les blocages CMake/AAPT2)
+        echo "org.gradle.jvmargs=-Xmx3584M -XX:MaxMetaspaceSize=1024M" >> android/gradle.properties
         
-        # 4. Lancement de la compilation finale de l'APK
-        flutter build apk --release
+        flutter build apk --release --no-tree-shake-icons
       
     - name: Sauvegarde de l'APK
       uses: actions/upload-artifact@v4
