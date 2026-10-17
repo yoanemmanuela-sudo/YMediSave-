@@ -89,22 +89,22 @@ jobs:
         flutter pub get
         dart run flutter_launcher_icons
         
-        # Script Python intelligent pour réparer TOUS les plugins et l'application
+        # Script Python chirurgical pour aligner TOUS les plugins sur SDK 36 et Java/Kotlin 17
         cat << 'EOF' > patch_all.py
-        import os, glob, re
+        import os, re
         import xml.etree.ElementTree as ET
 
-        # 1. Patcher tous les plugins dans le cache pub.dev
         pub_cache = os.path.expanduser('~/.pub-cache/hosted/pub.dev')
         for root_dir, dirs, files in os.walk(pub_cache):
-            if os.path.basename(root_dir) == 'android' and 'build.gradle' in files:
-                bg_path = os.path.join(root_dir, 'build.gradle')
+            if os.path.basename(root_dir) == 'android' and ('build.gradle' in files or 'build.gradle.kts' in files):
+                bg_file = 'build.gradle.kts' if 'build.gradle.kts' in files else 'build.gradle'
+                bg_path = os.path.join(root_dir, bg_file)
                 manifest_path = os.path.join(root_dir, 'src/main/AndroidManifest.xml')
                 
                 with open(bg_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                # Extraire le package du Manifest si namespace est manquant
+                # 1. Récupération du package pour le namespace
                 pkg_name = None
                 if os.path.exists(manifest_path):
                     try:
@@ -115,39 +115,57 @@ jobs:
                 if not pkg_name and 'on_audio_query' in root_dir:
                     pkg_name = 'com.lucasjosino.on_audio_query'
                 
-                if 'namespace' not in content and pkg_name:
-                    content = re.sub(r'android\s*\{', f'android {{\n    namespace "{pkg_name}"', content, count=1)
-                
-                # Forcer compileSdkVersion 35 dans chaque plugin
-                content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 35', content)
-                content = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 35', content)
-                
-                # Aligner Java et Kotlin sur 17 dans chaque plugin
+                # 2. Mise à niveau vers SDK 36 et Java 17 des lignes existantes
+                content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 36', content)
+                content = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 36', content)
                 content = re.sub(r'JavaVersion\.VERSION_1_8', 'JavaVersion.VERSION_17', content)
                 content = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', content)
                 content = re.sub(r"jvmTarget\s*=\s*['\"].*?['\"]", 'jvmTarget = "17"', content)
+
+                # 3. Injection forcée de namespace et compileOptions (Java 17) s'ils sont absents du plugin
+                inject_lines = []
+                if 'namespace' not in content and pkg_name:
+                    inject_lines.append(f'    namespace = "{pkg_name}"' if bg_file.endswith('.kts') else f'    namespace "{pkg_name}"')
+                
+                if 'compileOptions' not in content:
+                    inject_lines.append('    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }')
+                
+                if inject_lines:
+                    injection = '\n'.join(inject_lines)
+                    content = re.sub(r'android\s*\{', f'android {{\n{injection}', content, count=1)
                 
                 with open(bg_path, 'w', encoding='utf-8') as f:
                     f.write(content)
 
-        # 2. Patcher android/app/build.gradle.kts (ou .gradle)
+        # 4. Patcher android/app/build.gradle.kts (et .gradle) avec compileSdk 36 et Multidex
         for app_bg in ['android/app/build.gradle.kts', 'android/app/build.gradle']:
             if os.path.exists(app_bg):
                 with open(app_bg, 'r', encoding='utf-8') as f:
                     c = f.read()
-                c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 35', c)
-                c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 35', c)
+                c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', c)
+                c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 36', c)
                 c = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 21\n        multiDexEnabled = true', c)
                 c = re.sub(r'minSdkVersion\s+[^\n]+', 'minSdkVersion 21\n        multiDexEnabled true', c)
+                c = re.sub(r'JavaVersion\.VERSION_1_8', 'JavaVersion.VERSION_17', c)
+                c = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', c)
+                c = re.sub(r'jvmTarget\s*=\s*[^\n]+', 'jvmTarget = "17"', c)
                 with open(app_bg, 'w', encoding='utf-8') as f:
                     f.write(c)
         EOF
         python patch_all.py
 
-        # 3. Créer un fichier init.gradle universel pour synchroniser Java/Kotlin 17 sans toucher à build.gradle.kts
+        # 5. Synchronisation universelle Gradle (Java 17 + Kotlin 17)
         mkdir -p ~/.gradle/init.d
         cat << 'EOF' > ~/.gradle/init.d/ymedisave_jvm17.gradle
         allprojects {
+            afterEvaluate { project ->
+                if (project.hasProperty('android')) {
+                    project.android.compileOptions {
+                        sourceCompatibility = JavaVersion.VERSION_17
+                        targetCompatibility = JavaVersion.VERSION_17
+                    }
+                }
+            }
             tasks.withType(JavaCompile).configureEach {
                 sourceCompatibility = JavaVersion.VERSION_17.toString()
                 targetCompatibility = JavaVersion.VERSION_17.toString()
@@ -164,7 +182,6 @@ jobs:
         }
         EOF
 
-        # 4. Optimisation mémoire et désactivation de la compression d'icônes (évite les blocages CMake/AAPT2)
         echo "org.gradle.jvmargs=-Xmx3584M -XX:MaxMetaspaceSize=1024M" >> android/gradle.properties
         
         flutter build apk --release --no-tree-shake-icons
