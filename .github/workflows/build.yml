@@ -29,11 +29,11 @@ jobs:
       with:
         python-version: '3.10'
         
-    - name: Préparation Complète (Logo + Android + Patchs)
+    - name: Préparation Complète (Logo + Android + Manifeste)
       run: |
         pip install Pillow
         cat << 'EOF' > setup_all.py
-        import os, re, subprocess
+        import os, subprocess
         from PIL import Image, ImageDraw
         import xml.etree.ElementTree as ET
 
@@ -89,23 +89,38 @@ jobs:
                 bg_path = os.path.join(root_dir, bg_file)
                 m_path = os.path.join(root_dir, 'src/main/AndroidManifest.xml')
                 with open(bg_path, 'r', encoding='utf-8') as f: c = f.read()
+                
                 pkg = 'com.lucasjosino.on_audio_query' if 'on_audio_query' in root_dir else None
                 if os.path.exists(m_path):
                     try: pkg = ET.parse(m_path).getroot().attrib.get('package') or pkg
                     except: pass
-                c = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 36', c)
-                c = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 36', c)
+                
+                # Remplacer TOUTE déclaration compileSdk (chiffre OU variable flutter.compileSdkVersion) par 36
+                if bg_file.endswith('.kts'):
+                    c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', c)
+                else:
+                    c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 36', c)
+                    c = re.sub(r'compileSdk\s*=?\s*[^\n]+', 'compileSdk = 36', c)
+                
                 c = re.sub(r'JavaVersion\.VERSION_1_\d+', 'JavaVersion.VERSION_17', c)
                 c = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', c)
                 c = re.sub(r"jvmTarget\s*=\s*['\"].*?['\"]", 'jvmTarget = "17"', c)
+                
                 inj = []
+                # Forcer compileSdk = 36 en haut du bloc android {} au cas où il était absent
+                inj.append('    compileSdk = 36' if bg_file.endswith('.kts') else '    compileSdkVersion 36')
+                
                 if 'namespace' not in c and pkg:
                     inj.append(f'    namespace = "{pkg}"' if bg_file.endswith('.kts') else f'    namespace "{pkg}"')
                 if 'compileOptions' not in c:
                     inj.append('    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }' if bg_file.endswith('.kts') else '    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }')
-                if inj: c = re.sub(r'android\s*\{', 'android {\n' + '\n'.join(inj), c, count=1)
+                
+                if inj:
+                    c = re.sub(r'android\s*\{', 'android {\n' + '\n'.join(inj), c, count=1)
+                
                 if ('kotlin-android' in c or 'org.jetbrains.kotlin.android' in c) and 'jvmToolchain' not in c:
                     c += '\nkotlin {\n    jvmToolchain(17)\n}\n'
+                
                 with open(bg_path, 'w', encoding='utf-8') as f: f.write(c)
 
         for app_bg in ['android/app/build.gradle.kts', 'android/app/build.gradle']:
