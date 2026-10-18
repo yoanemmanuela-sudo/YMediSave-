@@ -78,6 +78,13 @@ jobs:
         flutter pub get
         dart run flutter_launcher_icons
         
+        # Désactiver les comportements stricts d'AGP 9+ responsables du crash de wakelock_plus
+        cat << 'EOF' >> android/gradle.properties
+        org.gradle.jvmargs=-Xmx3584M -XX:MaxMetaspaceSize=1024M
+        android.newDsl=false
+        android.builtInKotlin=false
+        EOF
+
         cat << 'EOF' > patch_gradle.py
         import os, re
         import xml.etree.ElementTree as ET
@@ -88,27 +95,30 @@ jobs:
                 bg_file = 'build.gradle.kts' if 'build.gradle.kts' in files else 'build.gradle'
                 bg_path = os.path.join(root_dir, bg_file)
                 m_path = os.path.join(root_dir, 'src/main/AndroidManifest.xml')
-                with open(bg_path, 'r', encoding='utf-8') as f: c = f.read()
+                with open(bg_path, 'r', encoding='utf-8') as f:
+                    c = f.read()
                 
                 pkg = 'com.lucasjosino.on_audio_query' if 'on_audio_query' in root_dir else None
                 if os.path.exists(m_path):
-                    try: pkg = ET.parse(m_path).getroot().attrib.get('package') or pkg
-                    except: pass
+                    try:
+                        pkg = ET.parse(m_path).getroot().attrib.get('package') or pkg
+                    except:
+                        pass
                 
-                # Remplacer TOUTE déclaration compileSdk (chiffre OU variable flutter.compileSdkVersion) par 36
+                # Mise à jour de compileSdk vers 34 (stable et compatible avec l'ensemble des bibliothèques)
                 if bg_file.endswith('.kts'):
-                    c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', c)
+                    c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 34', c)
                 else:
-                    c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 36', c)
-                    c = re.sub(r'compileSdk\s*=?\s*[^\n]+', 'compileSdk = 36', c)
+                    c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 34', c)
+                    c = re.sub(r'compileSdk\s*=?\s*[^\n]+', 'compileSdk = 34', c)
                 
                 c = re.sub(r'JavaVersion\.VERSION_1_\d+', 'JavaVersion.VERSION_17', c)
                 c = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', c)
                 c = re.sub(r"jvmTarget\s*=\s*['\"].*?['\"]", 'jvmTarget = "17"', c)
                 
                 inj = []
-                # Forcer compileSdk = 36 en haut du bloc android {} au cas où il était absent
-                inj.append('    compileSdk = 36' if bg_file.endswith('.kts') else '    compileSdkVersion 36')
+                if 'compileSdkVersion' not in c and 'compileSdk' not in c:
+                    inj.append('    compileSdk = 34' if bg_file.endswith('.kts') else '    compileSdkVersion 34')
                 
                 if 'namespace' not in c and pkg:
                     inj.append(f'    namespace = "{pkg}"' if bg_file.endswith('.kts') else f'    namespace "{pkg}"')
@@ -118,25 +128,27 @@ jobs:
                 if inj:
                     c = re.sub(r'android\s*\{', 'android {\n' + '\n'.join(inj), c, count=1)
                 
-                if ('kotlin-android' in c or 'org.jetbrains.kotlin.android' in c) and 'jvmToolchain' not in c:
-                    c += '\nkotlin {\n    jvmToolchain(17)\n}\n'
-                
-                with open(bg_path, 'w', encoding='utf-8') as f: f.write(c)
+                with open(bg_path, 'w', encoding='utf-8') as f:
+                    f.write(c)
 
         for app_bg in ['android/app/build.gradle.kts', 'android/app/build.gradle']:
             if os.path.exists(app_bg):
-                with open(app_bg, 'r', encoding='utf-8') as f: c = f.read()
-                c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', c)
-                c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 36', c)
-                c = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 21\n        multiDexEnabled = true', c)
-                c = re.sub(r'minSdkVersion\s+[^\n]+', 'minSdkVersion 21\n        multiDexEnabled true', c)
+                with open(app_bg, 'r', encoding='utf-8') as f:
+                    c = f.read()
+                if app_bg.endswith('.kts'):
+                    c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 34', c)
+                    c = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 21', c)
+                else:
+                    c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 34', c)
+                    c = re.sub(r'compileSdk\s*=?\s*[^\n]+', 'compileSdk = 34', c)
+                    c = re.sub(r'minSdkVersion\s+[^\n]+', 'minSdkVersion 21\n        multiDexEnabled true', c)
                 c = re.sub(r'JavaVersion\.VERSION_1_\d+', 'JavaVersion.VERSION_17', c)
                 c = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', c)
-                with open(app_bg, 'w', encoding='utf-8') as f: f.write(c)
+                with open(app_bg, 'w', encoding='utf-8') as f:
+                    f.write(c)
         EOF
         python patch_gradle.py
 
-        echo "org.gradle.jvmargs=-Xmx3584M -XX:MaxMetaspaceSize=1024M" >> android/gradle.properties
         flutter build apk --release --no-tree-shake-icons
       
     - name: Sauvegarde de l'APK
@@ -144,4 +156,3 @@ jobs:
       with:
         name: YMediSave-APK
         path: build/app/outputs/flutter-apk/app-release.apk
-        
