@@ -24,18 +24,21 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Installer l'outil de dessin Python
+    - name: Installer Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
         
-    - name: Le robot Yo'art Tech dessine le NOUVEAU LOGO
+    - name: Préparation Complète (Logo + Android + Patchs)
       run: |
         pip install Pillow
-        cat << 'EOF' > generate_icon.py
+        cat << 'EOF' > setup_all.py
+        import os, re, subprocess
         from PIL import Image, ImageDraw
-        size = 512
-        img = Image.new('RGB', (size, size), color=(15, 15, 20))
+        import xml.etree.ElementTree as ET
+
+        # 1. Dessin du Logo Yo'art Tech
+        img = Image.new('RGB', (512, 512), color=(15, 15, 20))
         draw = ImageDraw.Draw(img)
         draw.polygon([(256, 80), (420, 380), (92, 380)], outline=(124, 58, 237), width=12)
         draw.polygon([(256, 130), (370, 340), (142, 340)], outline=(8, 145, 178), width=8)
@@ -43,9 +46,87 @@ jobs:
             draw.line([(200+i, 180), (256, 260)], fill=(124, 58, 237), width=2)
             draw.line([(312-i, 180), (256, 260)], fill=(124, 58, 237), width=2)
             draw.line([(243+i, 260), (243+i, 320)], fill=(8, 145, 178), width=2)
-        draw.ellipse([(100, 100), (150, 150)], fill=(236, 72, 153))
-        draw.ellipse([(362, 100), (412, 150)], fill=(239, 68, 68))
-        draw.ellipse([(100, 362), (150, 412)], fill=(14, 165, 233))
-        draw.ellipse([(362, 362), (412, 412)], fill=(34, 197, 94))
-        img.save('icon.
+        for pos, col in [((100,100,150,150),(236,72,153)), ((362,100,412,150),(239,68,68)), ((100,362,150,412),(14,165,233)), ((362,362,412,412),(34,197,94))]:
+            draw.ellipse(pos, fill=col)
+        img.save('icon.png')
+
+        # 2. Création propre du dossier Android
+        subprocess.run("rm -rf android ios && flutter create --platforms=android --org com.ymedisave.app --project-name ymedisave /tmp/ym_tmp && cp -r /tmp/ym_tmp/android . && rm -rf /tmp/ym_tmp", shell=True, check=True)
+        os.makedirs('android/app/src/main/res/xml', exist_ok=True)
+        with open('android/app/src/main/res/xml/provider_paths.xml', 'w') as f:
+            f.write('<?xml version="1.0" encoding="utf-8"?>\n<paths><external-path name="external_files" path="."/></paths>')
+
+        # 3. Configuration du Manifeste
+        m_path = 'android/app/src/main/AndroidManifest.xml'
+        ET.register_namespace('android', 'http://schemas.android.com/apk/res/android')
+        tree = ET.parse(m_path)
+        root = tree.getroot()
+        for p in ['INTERNET', 'RECORD_AUDIO', 'READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE', 'WAKE_LOCK', 'FOREGROUND_SERVICE', 'POST_NOTIFICATIONS']:
+            ET.SubElement(root, 'uses-permission', {'{http://schemas.android.com/apk/res/android}name': f'android.permission.{p}'})
+        app = root.find('application')
+        if app is not None:
+            app.set('{http://schemas.android.com/apk/res/android}label', 'YMediSave')
+            prov = ET.SubElement(app, 'provider', {'{http://schemas.android.com/apk/res/android}name': 'vn.hunghd.flutterdownloader.DownloadedFileProvider', '{http://schemas.android.com/apk/res/android}authorities': 'com.ymedisave.app.flutter_downloader.provider', '{http://schemas.android.com/apk/res/android}exported': 'false', '{http://schemas.android.com/apk/res/android}grantUriPermissions': 'true'})
+            ET.SubElement(prov, 'meta-data', {'{http://schemas.android.com/apk/res/android}name': 'android.support.FILE_PROVIDER_PATHS', '{http://schemas.android.com/apk/res/android}resource': '@xml/provider_paths'})
+        tree.write(m_path, encoding='utf-8', xml_declaration=True)
+        EOF
+        python setup_all.py
+
+    - name: Compilation Finale de l'APK YMediSave
+      run: |
+        sed -i 's/ios: true/ios: false/g' pubspec.yaml
+        flutter pub get
+        dart run flutter_launcher_icons
+        
+        cat << 'EOF' > patch_gradle.py
+        import os, re
+        import xml.etree.ElementTree as ET
+
+        pub_cache = os.path.expanduser('~/.pub-cache/hosted/pub.dev')
+        for root_dir, _, files in os.walk(pub_cache):
+            if os.path.basename(root_dir) == 'android' and ('build.gradle' in files or 'build.gradle.kts' in files):
+                bg_file = 'build.gradle.kts' if 'build.gradle.kts' in files else 'build.gradle'
+                bg_path = os.path.join(root_dir, bg_file)
+                m_path = os.path.join(root_dir, 'src/main/AndroidManifest.xml')
+                with open(bg_path, 'r', encoding='utf-8') as f: c = f.read()
+                pkg = 'com.lucasjosino.on_audio_query' if 'on_audio_query' in root_dir else None
+                if os.path.exists(m_path):
+                    try: pkg = ET.parse(m_path).getroot().attrib.get('package') or pkg
+                    except: pass
+                c = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 36', c)
+                c = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 36', c)
+                c = re.sub(r'JavaVersion\.VERSION_1_\d+', 'JavaVersion.VERSION_17', c)
+                c = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', c)
+                c = re.sub(r"jvmTarget\s*=\s*['\"].*?['\"]", 'jvmTarget = "17"', c)
+                inj = []
+                if 'namespace' not in c and pkg:
+                    inj.append(f'    namespace = "{pkg}"' if bg_file.endswith('.kts') else f'    namespace "{pkg}"')
+                if 'compileOptions' not in c:
+                    inj.append('    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }' if bg_file.endswith('.kts') else '    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }')
+                if inj: c = re.sub(r'android\s*\{', 'android {\n' + '\n'.join(inj), c, count=1)
+                if ('kotlin-android' in c or 'org.jetbrains.kotlin.android' in c) and 'jvmToolchain' not in c:
+                    c += '\nkotlin {\n    jvmToolchain(17)\n}\n'
+                with open(bg_path, 'w', encoding='utf-8') as f: f.write(c)
+
+        for app_bg in ['android/app/build.gradle.kts', 'android/app/build.gradle']:
+            if os.path.exists(app_bg):
+                with open(app_bg, 'r', encoding='utf-8') as f: c = f.read()
+                c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', c)
+                c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 36', c)
+                c = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 21\n        multiDexEnabled = true', c)
+                c = re.sub(r'minSdkVersion\s+[^\n]+', 'minSdkVersion 21\n        multiDexEnabled true', c)
+                c = re.sub(r'JavaVersion\.VERSION_1_\d+', 'JavaVersion.VERSION_17', c)
+                c = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', c)
+                with open(app_bg, 'w', encoding='utf-8') as f: f.write(c)
+        EOF
+        python patch_gradle.py
+
+        echo "org.gradle.jvmargs=-Xmx3584M -XX:MaxMetaspaceSize=1024M" >> android/gradle.properties
+        flutter build apk --release --no-tree-shake-icons
+      
+    - name: Sauvegarde de l'APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: YMediSave-APK
+        path: build/app/outputs/flutter-apk/app-release.apk
         
