@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,15 +32,27 @@ jobs:
       with:
         python-version: '3.10'
         
-    - name: Préparation Complète (Logo + Android + Manifeste)
+    - name: Remplacement Automatique des Fichiers & Plugins Natifs (Mémoire, Voix Maguy IA, Égaliseur, AdMob, OTA)
       run: |
         pip install Pillow
-        cat << 'EOF' > setup_all.py
-        import os, subprocess
+        cat << 'EOF_PY' > setup_all.py
+        import os, subprocess, base64, zlib
         from PIL import Image, ImageDraw
         import xml.etree.ElementTree as ET
 
-        # 1. Dessin du Logo Yo'art Tech
+        FILES = {
+            'pubspec.yaml': 'eNp1U0ty2zAM3esUHG+8yIQjWYnreNqeoF21m2zCYSRYRkORDD9yfKScwxcrQMtJJtOuJOEBD+8BkNUjbMVxhB6jnqDqIXYBfUJnt2Jx/5PivygursUP6BLkICCJASInWI0BxJhNwvH02qMW5vQ6aMMp8fTa5YD0EF4Hce+WOiTxG7q9XFQ+PxqMe5XcViyts7CsJgix9GxkLeurpq0qsBMGZ0ewaVsJEfsnyv7+rZUrWYuvN5y3rEiwB9uD7RAip+1MTgkCv841c4QCXfYQElqnsHM2bsUDd9sQcoDHCeGgLtXi4UbeyBUhXhugkBrAQtDJMVbLVrZXLaMQRoysXO217U0pbRrCG0In7MEpb/SxxFdyI9csYw8HhNL9i7ylwJ8ck9K5R1fI72S7fneienewxun+zC2JndGSriKECTsoZc1GNqyYtJzB5wzhWPreyZoJ0YDy2D0Vpg0PkNNpfoqhl9l1XVynvfLBsYOzdPLES/BAK6TFqQQviYC1XJ+5Z7EpxUJTl+ENzg3Uc3SP3Fr3jN0SFVfsU/LF0KrMyuvuSQ+g0O54ZDl+kJiDUUZnS4MLpWdL4ffNH5Wj8wkktVxAfN4ZpI3RPoLDfitWs6kZuASIYFL/OR+yF9M/b+iSYNAWq+1s9S0+63w7MVoMX0P14TBzhHg9avpCba5JNg50+SlkeEv7zMMbv/gpiUKgI/qdNrF8jDw8Xhv9tlwivR0W1V+4ZD+o',
+            'lib/features/splash/splash_screen.dart': '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',
+            'lib/main.dart': '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',
+            'version.json': 'eNpFUEFOw0AMvPcVVi6AaJKmSEj0VsQBDqUSBSQkLk7WJAub3bDrLVQIiacgTs078hNewiYFcbM945mx30YA0Zqsk0ZHM4iyJEsmh9lRNO6B3EslLn2dkw1gdjQMsXm6saonV8yNm6VpKbnyeVKYOt0Y1FTXqD0pjJ0XJr1bkJArXFOcWlKEjlyqkMlxKsyLVgZFik0T/4JJ0N+5BxWBbOwmeD2gcjRMG58r6SoSc+4zTCfT4zjL4snJbqmoUJekTNmD3x9fcKG5a0uLHC4EQaAQbBhIgkGpkIzSEszFwuSwf4pay25ryY37zfAYlixJhfZWiq41Dq66NlzakHZdS+7gXvcuq43jbltT71BLR9B9wqPxFpbXc0DPpg4Bnj2B3MXp2t3esmEZ+P/p9uiVLRZ/fWG8Im9dqB00pqiIw+eCopAGiEF4UFRwoMB6yAfnZ9HoffQDL7epwA==',
+        }
+        for path, b64_data in FILES.items():
+            if os.path.dirname(path):
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+            raw = zlib.decompress(base64.b64decode(b64_data))
+            with open(path, 'wb') as f:
+                f.write(raw)
+
         img = Image.new('RGB', (512, 512), color=(15, 15, 20))
         draw = ImageDraw.Draw(img)
         draw.polygon([(256, 80), (420, 380), (92, 380)], outline=(124, 58, 237), width=12)
@@ -50,105 +65,96 @@ jobs:
             draw.ellipse(pos, fill=col)
         img.save('icon.png')
 
-        # 2. Création propre du dossier Android
-        subprocess.run("rm -rf android ios && flutter create --platforms=android --org com.ymedisave.app --project-name ymedisave /tmp/ym_tmp && cp -r /tmp/ym_tmp/android . && rm -rf /tmp/ym_tmp", shell=True, check=True)
+        subprocess.run("rm -rf android ios && flutter create --platforms=android --org com.ymedisave --project-name ymedisave /tmp/ym_tmp && cp -r /tmp/ym_tmp/android . && rm -rf /tmp/ym_tmp", shell=True, check=True)
         os.makedirs('android/app/src/main/res/xml', exist_ok=True)
         with open('android/app/src/main/res/xml/provider_paths.xml', 'w') as f:
             f.write('<?xml version="1.0" encoding="utf-8"?>\n<paths><external-path name="external_files" path="."/></paths>')
 
-        # 3. Configuration du Manifeste
         m_path = 'android/app/src/main/AndroidManifest.xml'
         ET.register_namespace('android', 'http://schemas.android.com/apk/res/android')
         tree = ET.parse(m_path)
         root = tree.getroot()
-        for p in ['INTERNET', 'RECORD_AUDIO', 'READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE', 'WAKE_LOCK', 'FOREGROUND_SERVICE', 'POST_NOTIFICATIONS']:
-            ET.SubElement(root, 'uses-permission', {'{http://schemas.android.com/apk/res/android}name': f'android.permission.{p}'})
+        permissions = [
+            'INTERNET', 'ACCESS_NETWORK_STATE', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS',
+            'READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE', 'MANAGE_EXTERNAL_STORAGE',
+            'READ_MEDIA_AUDIO', 'READ_MEDIA_VIDEO', 'READ_MEDIA_IMAGES', 'WAKE_LOCK',
+            'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK', 'POST_NOTIFICATIONS',
+            'REQUEST_INSTALL_PACKAGES', 'com.google.android.gms.permission.AD_ID',
+        ]
+        for p in permissions:
+            perm_name = p if p.startswith('com.') else f'android.permission.{p}'
+            ET.SubElement(root, 'uses-permission', {'{http://schemas.android.com/apk/res/android}name': perm_name})
         app = root.find('application')
         if app is not None:
             app.set('{http://schemas.android.com/apk/res/android}label', 'YMediSave')
-            prov = ET.SubElement(app, 'provider', {'{http://schemas.android.com/apk/res/android}name': 'vn.hunghd.flutterdownloader.DownloadedFileProvider', '{http://schemas.android.com/apk/res/android}authorities': 'com.ymedisave.app.flutter_downloader.provider', '{http://schemas.android.com/apk/res/android}exported': 'false', '{http://schemas.android.com/apk/res/android}grantUriPermissions': 'true'})
-            ET.SubElement(prov, 'meta-data', {'{http://schemas.android.com/apk/res/android}name': 'android.support.FILE_PROVIDER_PATHS', '{http://schemas.android.com/apk/res/android}resource': '@xml/provider_paths'})
+            app.set('{http://schemas.android.com/apk/res/android}usesCleartextTraffic', 'true')
+            app.set('{http://schemas.android.com/apk/res/android}requestLegacyExternalStorage', 'true')
+            ET.SubElement(app, 'meta-data', {
+                '{http://schemas.android.com/apk/res/android}name': 'com.google.android.gms.ads.APPLICATION_ID',
+                '{http://schemas.android.com/apk/res/android}value': 'ca-app-pub-3940256099942544~3347511713'
+            })
+            prov = ET.SubElement(app, 'provider', {
+                '{http://schemas.android.com/apk/res/android}name': 'vn.hunghd.flutterdownloader.DownloadedFileProvider',
+                '{http://schemas.android.com/apk/res/android}authorities': 'com.ymedisave.app.flutter_downloader.provider',
+                '{http://schemas.android.com/apk/res/android}exported': 'false',
+                '{http://schemas.android.com/apk/res/android}grantUriPermissions': 'true'
+            })
+            ET.SubElement(prov, 'meta-data', {
+                '{http://schemas.android.com/apk/res/android}name': 'android.support.FILE_PROVIDER_PATHS',
+                '{http://schemas.android.com/apk/res/android}resource': '@xml/provider_paths'
+            })
         tree.write(m_path, encoding='utf-8', xml_declaration=True)
-        EOF
-        python setup_all.py
+        EOF_PY
+        python3 setup_all.py
+        git config user.name "YoartTech-Bot"
+        git config user.email "yoarttech@users.noreply.github.com"
+        git add pubspec.yaml lib/main.dart lib/features/splash/splash_screen.dart version.json icon.png
+        if ! git diff --cached --quiet; then
+          git commit -m "Mise à jour automatique complète YMediSave v1.1.0+13 [skip ci]"
+          git push || true
+        fi
 
     - name: Compilation Finale de l'APK YMediSave
       run: |
-        sed -i 's/ios: true/ios: false/g' pubspec.yaml
         flutter pub get
         dart run flutter_launcher_icons
-        
-        # Désactiver les comportements stricts d'AGP 9+ responsables du crash de wakelock_plus
-        cat << 'EOF' >> android/gradle.properties
-        org.gradle.jvmargs=-Xmx3584M -XX:MaxMetaspaceSize=1024M
-        android.newDsl=false
-        android.builtInKotlin=false
-        EOF
-
-        cat << 'EOF' > patch_gradle.py
+        cat << 'EOF_PATCH' > patch_gradle.py
         import os, re
-        import xml.etree.ElementTree as ET
-
         pub_cache = os.path.expanduser('~/.pub-cache/hosted/pub.dev')
         for root_dir, _, files in os.walk(pub_cache):
             if os.path.basename(root_dir) == 'android' and ('build.gradle' in files or 'build.gradle.kts' in files):
                 bg_file = 'build.gradle.kts' if 'build.gradle.kts' in files else 'build.gradle'
                 bg_path = os.path.join(root_dir, bg_file)
-                m_path = os.path.join(root_dir, 'src/main/AndroidManifest.xml')
                 with open(bg_path, 'r', encoding='utf-8') as f:
                     c = f.read()
-                
-                pkg = 'com.lucasjosino.on_audio_query' if 'on_audio_query' in root_dir else None
-                if os.path.exists(m_path):
-                    try:
-                        pkg = ET.parse(m_path).getroot().attrib.get('package') or pkg
-                    except:
-                        pass
-                
-                # Mise à jour de compileSdk vers 34 (stable et compatible avec l'ensemble des bibliothèques)
                 if bg_file.endswith('.kts'):
-                    c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 34', c)
+                    c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', c)
+                    c += '\nandroid {\n    compileSdk = 36\n}\n'
                 else:
-                    c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 34', c)
-                    c = re.sub(r'compileSdk\s*=?\s*[^\n]+', 'compileSdk = 34', c)
-                
-                c = re.sub(r'JavaVersion\.VERSION_1_\d+', 'JavaVersion.VERSION_17', c)
-                c = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', c)
-                c = re.sub(r"jvmTarget\s*=\s*['\"].*?['\"]", 'jvmTarget = "17"', c)
-                
-                inj = []
-                if 'compileSdkVersion' not in c and 'compileSdk' not in c:
-                    inj.append('    compileSdk = 34' if bg_file.endswith('.kts') else '    compileSdkVersion 34')
-                
-                if 'namespace' not in c and pkg:
-                    inj.append(f'    namespace = "{pkg}"' if bg_file.endswith('.kts') else f'    namespace "{pkg}"')
-                if 'compileOptions' not in c:
-                    inj.append('    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }' if bg_file.endswith('.kts') else '    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }')
-                
-                if inj:
-                    c = re.sub(r'android\s*\{', 'android {\n' + '\n'.join(inj), c, count=1)
-                
+                    c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 36', c)
+                    c = re.sub(r'compileSdk\s*=?\s*[^\n]+', 'compileSdk 36', c)
+                    c += '\nandroid {\n    compileSdkVersion 36\n}\n'
+                if 'on_audio_query' in root_dir:
+                    c = re.sub(r"jvmTarget\s*=\s*['\"].*?['\"]", 'jvmTarget = "17"', c)
+                    c += '\nandroid {\n    namespace "com.lucasjosino.on_audio_query"\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n}\nkotlin {\n    jvmToolchain(17)\n}\n'
                 with open(bg_path, 'w', encoding='utf-8') as f:
                     f.write(c)
-
         for app_bg in ['android/app/build.gradle.kts', 'android/app/build.gradle']:
             if os.path.exists(app_bg):
                 with open(app_bg, 'r', encoding='utf-8') as f:
                     c = f.read()
-                if app_bg.endswith('.kts'):
-                    c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 34', c)
-                    c = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 21', c)
-                else:
-                    c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 34', c)
-                    c = re.sub(r'compileSdk\s*=?\s*[^\n]+', 'compileSdk = 34', c)
-                    c = re.sub(r'minSdkVersion\s+[^\n]+', 'minSdkVersion 21\n        multiDexEnabled true', c)
-                c = re.sub(r'JavaVersion\.VERSION_1_\d+', 'JavaVersion.VERSION_17', c)
-                c = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', c)
+                c = re.sub(r'namespace\s*=?\s*["\'][^"\']+["\']', 'namespace = "com.ymedisave.app"', c)
+                c = re.sub(r'applicationId\s*=?\s*["\'][^"\']+["\']', 'applicationId = "com.ymedisave.app"', c)
+                c = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', c)
+                c = re.sub(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 36', c)
+                c = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 21\n        multiDexEnabled = true', c)
+                c = re.sub(r'minSdkVersion\s+[^\n]+', 'minSdkVersion 21\n        multiDexEnabled true', c)
                 with open(app_bg, 'w', encoding='utf-8') as f:
                     f.write(c)
-        EOF
-        python patch_gradle.py
-
+        EOF_PATCH
+        python3 patch_gradle.py
+        echo "org.gradle.jvmargs=-Xmx3584M -XX:MaxMetaspaceSize=1024M" >> android/gradle.properties
+        echo "android.newDsl=false" >> android/gradle.properties
         flutter build apk --release --no-tree-shake-icons
       
     - name: Sauvegarde de l'APK
@@ -156,3 +162,4 @@ jobs:
       with:
         name: YMediSave-APK
         path: build/app/outputs/flutter-apk/app-release.apk
+
