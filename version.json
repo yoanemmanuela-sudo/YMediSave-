@@ -1,0 +1,8 @@
+{
+  "version": "1.1.0+13",
+  "buildNumber": 13,
+  "apkUrl": "https://github.com/yoanemmanuela-sudo/YMediSave-/releases/latest/download/app-release.apk",
+  "mandatory": false,
+  "publishedAt": "2026-11-09",
+  "changelog": "• Intégration de la régie publicitaire AdMob (Bannières, Interstitiels, Vidéos Récompensées)\n• Système de mise à jour OTA automatique intégré\n• Optimisation de l'extraction de couleurs des pochettes audio et du lecteur vidéo HD"
+}

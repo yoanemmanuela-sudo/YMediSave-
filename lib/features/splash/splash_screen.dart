@@ -1,9 +1,11 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
-import '../home/home_screen.dart';
+import 'package:just_audio/just_audio.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  final Widget nextScreen;
+  const SplashScreen({super.key, required this.nextScreen});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -11,124 +13,100 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _pulseAnimation;
-  late Animation<double> _spinAnimation;
-  
-  // Variable pour contrôler l'apparition de la signature
-  bool _showSignature = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3));
-    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    _spinAnimation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    
-    _controller.repeat(reverse: true);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
 
-    // Fait apparaître Yo'art Tech après 2 secondes
-    Future.delayed(const Duration(seconds: 2), () {
+    _playStartupSound();
+
+    Timer(const Duration(seconds: 4), () {
       if (mounted) {
-        setState(() {
-          _showSignature = true;
-        });
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => widget.nextScreen),
+        );
       }
     });
+  }
 
-    // Navigue vers l'accueil après 5 secondes (laisse le temps d'admirer le logo)
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
-      }
-    });
+  Future<void> _playStartupSound() async {
+    try {
+      await _audioPlayer.setUrl(
+        'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',
+      );
+      await _audioPlayer.play();
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
-      body: Center(
+      backgroundColor: const Color(0xFF0F0F14),
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Spacer(),
-            // L'ANIMATION DU LOGO
-            SizedBox(
-              width: 250, height: 250,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Triangle Externe Violet
-                  Icon(Icons.change_history_rounded, size: 200, color: AppColors.primaryViolet.withOpacity(0.8)),
-                  // Triangle Interne Bleu
-                  const Icon(Icons.change_history_rounded, size: 140, color: AppColors.secondaryCyan),
-                  // Le Y au centre
-                  ScaleTransition(
-                    scale: _pulseAnimation,
-                    child: ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [AppColors.primaryViolet, AppColors.secondaryCyan],
-                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      ).createShader(bounds),
-                      child: const Text('Y', style: TextStyle(fontSize: 80, fontWeight: FontWeight.w900, color: Colors.white)),
+            const SizedBox(height: 40),
+            Center(
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  return SizedBox(
+                    width: 260,
+                    height: 260,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CustomPaint(
+                          size: const Size(220, 220),
+                          painter: YoartLogoPainter(progress: _controller.value),
+                        ),
+                        _buildOrbitIcon(Icons.music_note, const Color(0xFFEC4899), 0, _controller.value),
+                        _buildOrbitIcon(Icons.play_arrow_rounded, const Color(0xFFEF4444), math.pi / 2, _controller.value),
+                        _buildOrbitIcon(Icons.language, const Color(0xFF0EA5E9), math.pi, _controller.value),
+                        _buildOrbitIcon(Icons.download_rounded, const Color(0xFF22C55E), 3 * math.pi / 2, _controller.value),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 32.0),
+              child: Column(
+                children: const [
+                  Text(
+                    'YMediSave',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
                     ),
                   ),
-                  // Les 4 icônes animées autour
-                  RotationTransition(
-                    turns: _spinAnimation,
-                    child: SizedBox(
-                      width: 220, height: 220,
-                      child: Stack(
-                        children: [
-                          Positioned(top: 0, left: 93, child: _buildMediaIcon(Icons.music_note_rounded, Colors.pinkAccent)),
-                          Positioned(bottom: 0, left: 93, child: _buildMediaIcon(Icons.download_rounded, Colors.green)),
-                          Positioned(left: 0, top: 93, child: _buildMediaIcon(Icons.public, Colors.blue)),
-                          Positioned(right: 0, top: 93, child: _buildMediaIcon(Icons.play_arrow_rounded, Colors.red)),
-                        ],
-                      ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Créé par Yo\'art Tech',
+                    style: TextStyle(
+                      color: Color(0xFF0891B2),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text('YMediSave', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 2)),
-            const Spacer(),
-            
-            // BRANDING AUDIO GOOGLE
-            const Icon(Icons.verified_rounded, color: AppColors.secondaryCyan, size: 24),
-            const SizedBox(height: 8),
-            const Text(
-              'Son clair et immersif',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              'Qualité audio signée Google',
-              style: TextStyle(color: AppColors.textSecondaryDark, fontSize: 14),
-            ),
-            const SizedBox(height: 30),
-
-            // L'APPARITION DE TA SIGNATURE YO'ART TECH
-            AnimatedOpacity(
-              opacity: _showSignature ? 1.0 : 0.0,
-              duration: const Duration(seconds: 2), // Effet de fondu très doux
-              child: const Padding(
-                padding: EdgeInsets.only(bottom: 20),
-                child: Text(
-                  'Créé par Yo\'art Tech',
-                  style: TextStyle(
-                    color: AppColors.primaryViolet, 
-                    fontSize: 15, 
-                    fontWeight: FontWeight.bold, 
-                    letterSpacing: 1.5,
-                  ),
-                ),
               ),
             ),
           ],
@@ -137,11 +115,70 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildMediaIcon(IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: AppColors.cardDark, shape: BoxShape.circle, border: Border.all(color: color, width: 2)),
-      child: Icon(icon, color: color, size: 18),
+  Widget _buildOrbitIcon(IconData icon, Color color, double baseAngle, double progress) {
+    final angle = baseAngle + (progress * 0.4);
+    const radius = 95.0;
+    return Transform.translate(
+      offset: Offset(radius * math.cos(angle), radius * math.sin(angle)),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.18),
+          shape: BoxShape.circle,
+          border: Border.all(color: color, width: 1.5),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
     );
   }
+}
+
+class YoartLogoPainter extends CustomPainter {
+  final double progress;
+  YoartLogoPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final paintViolet = Paint()
+      ..color = const Color(0xFF7C3AED)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6;
+
+    final paintCyan = Paint()
+      ..color = const Color(0xFF0891B2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+
+    final pathOuter = Path()
+      ..moveTo(center.dx, 20)
+      ..lineTo(size.width - 20, size.height - 30)
+      ..lineTo(20, size.height - 30)
+      ..close();
+    canvas.drawPath(pathOuter, paintViolet);
+
+    final pathInner = Path()
+      ..moveTo(center.dx, size.height - 20)
+      ..lineTo(size.width - 30, 40)
+      ..lineTo(30, 40)
+      ..close();
+    canvas.drawPath(pathInner, paintCyan);
+
+    final yPaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFF7C3AED), Color(0xFF0891B2)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 14 + (progress * 3);
+
+    canvas.drawLine(Offset(center.dx - 28, center.dy - 35), center, yPaint);
+    canvas.drawLine(Offset(center.dx + 28, center.dy - 35), center, yPaint);
+    canvas.drawLine(center, Offset(center.dx, center.dy + 45), yPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant YoartLogoPainter oldDelegate) => oldDelegate.progress != progress;
 }
